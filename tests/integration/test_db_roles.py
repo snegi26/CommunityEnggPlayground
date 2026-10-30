@@ -30,7 +30,7 @@ def test_migrations_downgrade_to_base_and_upgrade_again(database_urls: dict[str,
             "SELECT count(*) FROM pg_tables WHERE schemaname = 'public' "
             "AND tablename <> 'alembic_version'"
         ).fetchone()
-    command.upgrade(config, "head")
+    command.upgrade(config, "heads")
 
     assert leftover == (0,)
 

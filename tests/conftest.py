@@ -12,7 +12,8 @@ from psycopg import sql
 from passport.db.engine import get_engine, get_sessionmaker
 from passport.settings import Settings, get_settings, libpq_url
 
-TEST_DB = "passport_test"
+# Parallel workers may each use their own database via PASSPORT_TEST_DB.
+TEST_DB = os.environ.get("PASSPORT_TEST_DB", "passport_test")
 
 
 def _with_database(url: str, database: str) -> str:
@@ -43,7 +44,7 @@ def database_urls() -> Iterator[dict[str, str]]:
     get_engine.cache_clear()
     get_sessionmaker.cache_clear()
 
-    command.upgrade(alembic_config(owner_url), "head")
+    command.upgrade(alembic_config(owner_url), "heads")
     yield {"owner": owner_url, "app": app_url}
     get_engine().dispose()
 
