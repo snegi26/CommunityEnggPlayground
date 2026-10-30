@@ -1,0 +1,3 @@
+{"claims": [
+  {"predicate": "password_min_length", "params": {"min_length": 10}}
+]}

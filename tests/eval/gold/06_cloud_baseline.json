@@ -1,0 +1,6 @@
+{"claims": [
+  {"predicate": "root_mfa_enabled", "params": {"scope": "all_production_accounts"}},
+  {"predicate": "password_min_length", "params": {"min_length": 12}},
+  {"predicate": "cloudtrail_enabled", "params": {"scope": "all_production_accounts"}},
+  {"predicate": "s3_encryption_enabled", "params": {"scope": "all_production_accounts"}}
+]}

@@ -1,0 +1,5 @@
+{
+  "description": "Pass thresholds for the live drafting eval (tests/eval/test_drafting_eval.py). Overall applies to all checkable claims; per_predicate applies to each predicate with at least min_support expected claims in the gold set.",
+  "overall": {"precision": 0.85, "recall": 0.8},
+  "per_predicate": {"precision": 0.7, "recall": 0.6, "min_support": 2}
+}

@@ -1,0 +1,3 @@
+{"claims": [
+  {"predicate": "mfa_enforced", "params": {"scope": "all_production_accounts"}}
+]}

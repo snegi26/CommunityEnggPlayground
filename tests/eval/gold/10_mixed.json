@@ -1,0 +1,6 @@
+{"claims": [
+  {"predicate": "mfa_enforced", "params": {"scope": "all_users"}},
+  {"predicate": "cloudtrail_enabled", "params": {"scope": "all_accounts", "multi_region": true}},
+  {"predicate": "s3_public_access_blocked", "params": {"scope": "all_production_accounts"}},
+  {"predicate": "github_org_2fa_required", "params": {"scope": "all_orgs"}}
+]}

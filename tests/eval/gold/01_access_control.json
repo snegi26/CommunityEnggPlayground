@@ -1,0 +1,5 @@
+{"claims": [
+  {"predicate": "mfa_enforced", "params": {"scope": "all_users"}},
+  {"predicate": "root_mfa_enabled", "params": {"scope": "all_accounts"}},
+  {"predicate": "password_min_length", "params": {"min_length": 14}}
+]}

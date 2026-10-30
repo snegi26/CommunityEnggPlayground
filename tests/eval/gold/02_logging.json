@@ -1,0 +1,3 @@
+{"claims": [
+  {"predicate": "cloudtrail_enabled", "params": {"scope": "all_accounts", "multi_region": true}}
+]}

@@ -1,0 +1,4 @@
+{"claims": [
+  {"predicate": "github_members_2fa_enabled", "params": {"scope": "all_orgs"}},
+  {"predicate": "branch_protection_required", "params": {"min_reviews": 1}}
+]}

@@ -1,0 +1,4 @@
+{"claims": [
+  {"predicate": "s3_encryption_enabled", "params": {"scope": "all_accounts"}},
+  {"predicate": "s3_public_access_blocked", "params": {"scope": "all_accounts"}}
+]}
