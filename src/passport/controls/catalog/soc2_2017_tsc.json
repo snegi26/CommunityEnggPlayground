@@ -1,0 +1,140 @@
+{
+  "framework": "soc2",
+  "name": "SOC 2 Trust Services Criteria (common criteria)",
+  "version": "2017",
+  "note": "Control identifiers and short titles only; no criteria or control text is reproduced.",
+  "controls": [
+    {
+      "id": "CC1.1",
+      "title": "Commitment to integrity and ethical values"
+    },
+    {
+      "id": "CC1.2",
+      "title": "Board independence and oversight"
+    },
+    {
+      "id": "CC1.3",
+      "title": "Management structure, reporting lines and authority"
+    },
+    {
+      "id": "CC1.4",
+      "title": "Commitment to competence"
+    },
+    {
+      "id": "CC1.5",
+      "title": "Accountability for internal control"
+    },
+    {
+      "id": "CC2.1",
+      "title": "Quality information for internal control"
+    },
+    {
+      "id": "CC2.2",
+      "title": "Internal communication"
+    },
+    {
+      "id": "CC2.3",
+      "title": "External communication"
+    },
+    {
+      "id": "CC3.1",
+      "title": "Objectives specified for risk assessment"
+    },
+    {
+      "id": "CC3.2",
+      "title": "Risk identification and analysis"
+    },
+    {
+      "id": "CC3.3",
+      "title": "Fraud risk assessment"
+    },
+    {
+      "id": "CC3.4",
+      "title": "Assessment of significant changes"
+    },
+    {
+      "id": "CC4.1",
+      "title": "Ongoing and separate evaluations"
+    },
+    {
+      "id": "CC4.2",
+      "title": "Communication of control deficiencies"
+    },
+    {
+      "id": "CC5.1",
+      "title": "Selection of control activities"
+    },
+    {
+      "id": "CC5.2",
+      "title": "General controls over technology"
+    },
+    {
+      "id": "CC5.3",
+      "title": "Deployment through policies and procedures"
+    },
+    {
+      "id": "CC6.1",
+      "title": "Logical access security"
+    },
+    {
+      "id": "CC6.2",
+      "title": "User registration and authorization"
+    },
+    {
+      "id": "CC6.3",
+      "title": "Role-based access management"
+    },
+    {
+      "id": "CC6.4",
+      "title": "Physical access restriction"
+    },
+    {
+      "id": "CC6.5",
+      "title": "Asset disposal"
+    },
+    {
+      "id": "CC6.6",
+      "title": "Protection against external threats"
+    },
+    {
+      "id": "CC6.7",
+      "title": "Restriction of data transmission"
+    },
+    {
+      "id": "CC6.8",
+      "title": "Prevention of unauthorized software"
+    },
+    {
+      "id": "CC7.1",
+      "title": "Detection of configuration changes and vulnerabilities"
+    },
+    {
+      "id": "CC7.2",
+      "title": "Monitoring of system components"
+    },
+    {
+      "id": "CC7.3",
+      "title": "Evaluation of security events"
+    },
+    {
+      "id": "CC7.4",
+      "title": "Incident response"
+    },
+    {
+      "id": "CC7.5",
+      "title": "Recovery from incidents"
+    },
+    {
+      "id": "CC8.1",
+      "title": "Change management"
+    },
+    {
+      "id": "CC9.1",
+      "title": "Business disruption risk mitigation"
+    },
+    {
+      "id": "CC9.2",
+      "title": "Vendor and business partner risk"
+    }
+  ]
+}

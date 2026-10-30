@@ -61,7 +61,7 @@ def _clean_tables(request: pytest.FixtureRequest) -> Iterator[None]:
             r[0]
             for r in conn.execute(
                 "SELECT tablename FROM pg_tables WHERE schemaname = 'public' "
-                "AND tablename <> 'alembic_version'"
+                "AND tablename NOT IN ('alembic_version', 'controls')"
             )
         ]
         if tables:
