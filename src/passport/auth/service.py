@@ -21,6 +21,8 @@ from passport.auth.models import (
 )
 from passport.db.base import utcnow
 from passport.db.rls import set_user_context
+from passport.provenance.actor import Actor, require_human
+from passport.provenance.service import append_event
 
 SESSION_TTL = timedelta(hours=12)
 RESET_TTL = timedelta(hours=1)
@@ -219,14 +221,22 @@ def confirm_totp_enrollment(
     return codes
 
 
-def reset_member_mfa(session: Session, *, target: User) -> None:
-    """Owner-initiated MFA reset for a member who lost their authenticator."""
+def reset_member_mfa(session: Session, *, actor: Actor, org_id: uuid.UUID, target: User) -> None:
+    """Owner-initiated MFA reset for a member who lost their authenticator (human-only)."""
+    require_human(actor)
     target.totp_secret = None
     target.totp_enabled = False
     for code in session.scalars(select(RecoveryCode).where(RecoveryCode.user_id == target.id)):
         session.delete(code)
     session.execute(delete(AuthSession).where(AuthSession.user_id == target.id))
-    session.flush()
+    append_event(
+        session,
+        org_id=org_id,
+        actor=actor,
+        event_type="member.mfa_reset",
+        subject_kind="user",
+        subject_id=target.id,
+    )
 
 
 # --- password reset ------------------------------------------------------------------

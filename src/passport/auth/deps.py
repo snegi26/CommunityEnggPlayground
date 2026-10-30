@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from passport.auth.models import User
 from passport.auth.service import CurrentSession, resolve_session
 from passport.db.engine import get_session
+from passport.provenance.actor import Human
 from passport.tenancy.models import APPROVING_ROLES, Membership
 from passport.tenancy.service import NotFoundError, require_membership
 
@@ -38,6 +39,10 @@ class OrgContext:
     @property
     def org_id(self) -> uuid.UUID:
         return self.membership.org_id
+
+    @property
+    def actor(self) -> Human:
+        return Human(user_id=self.user.id, on_behalf_of_org=self.membership.external)
 
 
 def org_context(org_id: uuid.UUID, db: DbSession, signed_in: SignedIn) -> OrgContext:

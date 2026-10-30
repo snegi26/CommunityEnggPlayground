@@ -192,5 +192,5 @@ def reset_member_mfa(user_id: uuid.UUID, ctx: InOrg, db: DbSession) -> dict[str,
     target = db.get(User, user_id)
     if target is None or tenancy.membership_of(db, user_id=user_id, org_id=ctx.org_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "not_found")
-    service.reset_member_mfa(db, target=target)
+    service.reset_member_mfa(db, actor=ctx.actor, org_id=ctx.org_id, target=target)
     return {"ok": True}
