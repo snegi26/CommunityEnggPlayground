@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     )
     # Name of the application role that migrations grant privileges to.
     app_db_role: str = "passport_app"
+    # Local object-storage directory for uploaded policies and evidence (dev; S3 later).
+    storage_dir: str = "var/storage"
+    # Uploads larger than this are rejected (U5).
+    max_upload_bytes: int = 25 * 1024 * 1024
 
 
 @lru_cache

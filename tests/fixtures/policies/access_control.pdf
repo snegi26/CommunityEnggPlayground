@@ -1,0 +1,43 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 929 >>
+stream
+BT /F1 14 Tf 72 730 Td (Purpose) Tj ET
+BT /F1 11 Tf 72 706 Td (This policy defines how Acme grants, reviews, and removes access to production) Tj ET
+BT /F1 11 Tf 72 692 Td (systems and company data.) Tj ET
+BT /F1 11 Tf 72 668 Td (It applies to all employees, contractors, and service accounts.) Tj ET
+BT /F1 14 Tf 72 634 Td (Multi-factor Authentication) Tj ET
+BT /F1 11 Tf 72 610 Td (MFA is required on all production accounts, including administrator and break-) Tj ET
+BT /F1 11 Tf 72 596 Td (glass accounts.) Tj ET
+BT /F1 11 Tf 72 572 Td (Hardware security keys are required for members of the infrastructure team.) Tj ET
+BT /F1 14 Tf 72 538 Td (Access Reviews) Tj ET
+BT /F1 11 Tf 72 514 Td (Access to production systems is reviewed every quarter by the system owner.) Tj ET
+BT /F1 11 Tf 72 490 Td (Accounts of departed staff are disabled within one business day of their last) Tj ET
+BT /F1 11 Tf 72 476 Td (working day.) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001221 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1318
+%%EOF
