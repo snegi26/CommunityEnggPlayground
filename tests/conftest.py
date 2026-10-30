@@ -46,3 +46,26 @@ def database_urls() -> Iterator[dict[str, str]]:
     command.upgrade(alembic_config(owner_url), "head")
     yield {"owner": owner_url, "app": app_url}
     get_engine().dispose()
+
+
+@pytest.fixture(autouse=True)
+def _clean_tables(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Truncate application tables after each test that touched the database."""
+    yield
+    if "database_urls" not in request.fixturenames:
+        return
+    urls = request.getfixturevalue("database_urls")
+    with psycopg.connect(libpq_url(urls["owner"]), autocommit=True) as conn:
+        tables = [
+            r[0]
+            for r in conn.execute(
+                "SELECT tablename FROM pg_tables WHERE schemaname = 'public' "
+                "AND tablename <> 'alembic_version'"
+            )
+        ]
+        if tables:
+            conn.execute(
+                sql.SQL("TRUNCATE {} CASCADE").format(
+                    sql.SQL(", ").join(sql.Identifier(t) for t in tables)
+                )
+            )

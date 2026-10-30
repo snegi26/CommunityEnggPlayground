@@ -6,6 +6,7 @@ from fastapi import Depends, FastAPI
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from passport.auth.routes import router as auth_router
 from passport.db.engine import get_session
 
 
@@ -17,4 +18,5 @@ def create_app() -> FastAPI:
         session.execute(text("SELECT 1"))
         return {"status": "ok", "database": "ok"}
 
+    app.include_router(auth_router)
     return app
