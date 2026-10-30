@@ -188,6 +188,7 @@ The only demand signal so far is the observation that documents go stale; no one
 
 - Agent-evaluated (LLM-judged) findings for fuzzy claims: rejected per the Key Decision above; revisit if coverage proves too low in pilots.
 - Blocking write-capable credentials at connection time: v1 requests read-only scopes and verifies the AWS trust policy (U7) but does not reject a broader Google or GitHub grant, because providers do not uniformly expose granted scopes; revisit if pilots show customers over-granting.
+- A cooldown on on-demand re-runs: R10 asks for re-runs without a limit, duplicate requests attach to the running run (U11), and rate limits already degrade to check failed (KTD11); add a throttle if pilots show connector rate-limit trouble.
 - Per-tenant KMS keys for crypto-shredding: one key with tenant encryption context (KTD6) closes the cross-tenant decryption gap; revisit when a customer requires per-tenant keys.
 
 ### Dependencies / Assumptions
@@ -217,16 +218,21 @@ The only demand signal so far is the observation that documents go stale; no one
 - KTD2. **The LLM runs only when a policy is added or changed; weekly checks are deterministic code.** Drafting binds each claim to a predicate from KTD3; the check runner evaluates confirmed predicates against connector observations without any model call. Results are reproducible for auditors, weekly cost is flat, and AE1–AE9 are testable without a model. Implements the "not checkable" Key Decision; governs R2, R6, R10.
 - KTD3. **A closed, versioned predicate registry defines every checkable claim type.** Each predicate (about 15–25 to start, for example `mfa_enforced`, `root_mfa_enabled`, `cloudtrail_enabled`, `branch_protection_required`, `password_min_length`) declares its parameters, the connector capability it needs, its comparison, its scope semantics for R18, and a plain-language check description shown to approvers per R7. A policy sentence that maps to no predicate yields a not-checkable claim. Research found free-text claims cannot be checked mechanically and that a typed vocabulary is the established pattern.
 - KTD4. **Claim drafting uses the Anthropic Python SDK with schema-enforced tool use, then two verification passes.** The draft call returns `{quote, span_id, predicate, parameters, rationale}` per claim. Code verifies the quote is an exact whitespace-normalized substring of the cited span and that parameters validate against the predicate schema; a second model call checks the quote supports the claim, and a failure downgrades the claim to needs-review. Default model `claude-sonnet-5-5`, configurable; every draft records model id and prompt version. Research found models attach quotes to most claims while far fewer are actually supported, so presence alone is not evidence.
-- KTD5. **The organization is the tenant; every request and job carries one explicit org context.** Users hold memberships with a role (owner, approver, viewer) per org; a consultant is a user with memberships in several orgs, and there is no cross-org query path. Postgres row-level security with `FORCE ROW LEVEL SECURITY`, keyed on a per-transaction setting, backs explicit application filtering; the application database role neither owns tables nor has `BYPASSRLS`. Governs R15, R21.
-- KTD6. **Store as few customer secrets as possible, and envelope-encrypt the rest.** AWS uses cross-account role assumption (no stored secret); GitHub uses a GitHub App installation (only our app key plus installation id). Google Workspace OAuth refresh tokens are encrypted with a per-record data key from AWS KMS, using the org id and connection id as encryption context so ciphertext cannot be decrypted under another tenant. A local key provider substitutes for KMS in development and tests.
+- KTD5. **The organization is the tenant; every request and job carries one explicit org context.** Users hold memberships with a role (owner, approver, viewer) per org and an `external` flag set for consultant memberships; a consultant is a user with memberships in several orgs, and there is no cross-org query path for domain data. Owners and approvers may confirm, edit, and reject claims and approve documents; viewers are read-only. Postgres row-level security with `FORCE ROW LEVEL SECURITY`, keyed on a per-transaction org setting, backs explicit application filtering on every domain table; the application database role neither owns tables nor has `BYPASSRLS`, and migrations run under a separate owner role. Three narrow paths exist before an org is chosen, and nothing else crosses orgs:
+  1. Users and memberships use a user-keyed policy (rows of the current user only), so login and the org switcher can list one user's orgs.
+  2. Invitations are looked up by token hash only.
+  3. The scheduler reads org ids through one `SECURITY DEFINER` function that returns ids and nothing else, then sets each job's org context.
+
+  Governs R15, R21.
+- KTD6. **Store as few customer secrets as possible, and envelope-encrypt the rest.** AWS uses cross-account role assumption (no stored secret); GitHub uses a GitHub App installation (only our app key plus installation id). Google Workspace OAuth refresh tokens are encrypted with a per-record data key from AWS KMS, using the org id and connection id as encryption context so ciphertext cannot be decrypted under another tenant. A local key provider substitutes for KMS in development and tests. The platform-wide credentials this design concentrates trust in (the GitHub App private key, the Google OAuth client secret, and the AWS principal that assumes customer roles) load at startup from AWS Secrets Manager or the instance role, are never committed or logged, and have a documented rotation procedure in the README.
 - KTD7. **Connectors expose read methods only and return observations shaped as IPE.** The connector interface has no write operation. Each observation records the endpoint and parameters, row count, a pagination-completeness flag, a SHA-256 of the raw response, the collector version, and the UTC collection time; the raw response is retained. An empty or incomplete result is never treated as compliant: it produces not checkable or partial coverage. v1 ships AWS (`SecurityAudit` managed policy plus a per-tenant generated external id, not `ReadOnlyAccess`), Google Workspace (Admin SDK Directory read-only scopes with administrator consent), and GitHub (App with read-only organization administration and repository administration permissions; verify exact permission names against GitHub's REST permissions reference before implementing).
 - KTD8. **Provenance is an append-only, per-org hash-chained event log.** Every state change (claim drafted, confirmed, edited, rejected; observation recorded; status changed; document version added; approval) writes one event carrying the actor (a human user id, or the agent with run id, model id, and prompt version), the payload hash, and the previous event's hash. The application database role has no `UPDATE` or `DELETE` on the event table. Statuses and claims are current-state tables projected from the same service calls that write events. Governs R13, R14, R21; stored-data format is costly to change later, so it lands in U3.
-- KTD9. **The status engine is a pure function from claims, observations, dates, and org settings to item statuses.** Claim results roll up per R17; trust (R8) is a separate field, true only when every contributing claim is confirmed; cause text is rendered from structured fields by templates, so no model runs at check time.
+- KTD9. **The status engine is a pure function from claims, observations, dates, and per-framework settings to item statuses, keyed by item and framework.** Claim results roll up per R17, with date checks computed per framework the item maps to (R19). Trust (R8) is computed per claim result: the item's trust comes from the claims behind its worst status, so a confirmed contradiction stays trusted even while unrelated claims await review. Cause text is rendered from structured fields by templates, so no model runs at check time.
 - KTD10. **Human-only operations are unreachable from the agent by construction.** The agent's tool registry has no confirm, approve, or edit-confirmed-claim tool, and the service layer rejects those operations from an agent principal. Agent tools are created per run with one org id bound in. Policy documents and evidence are untrusted input: no text in them can change status or confirmation.
 - KTD11. **A Postgres-backed job queue (`procrastinate`) runs scheduled and on-demand checks in a separate worker process.** It avoids adding Redis. Weekly runs are staggered by org to spread connector rate limits; a rate-limit or timeout outcome becomes check failed (R2), never a finding. Each run records per-claim outcomes so a rerun is idempotent and a partial run still produces a report with stated coverage (R12).
 - KTD12. **The weekly report is an in-product page plus an email summary with a link.** The email carries counts and item titles only, never account names or raw observations, to keep identity data out of inboxes. SMTP is configured per deployment.
 - KTD13. **The auditor export is a ZIP of a JSON snapshot, CSV summaries per framework, and the per-item event log for the audit window.** It includes unconfirmed items, labeled. The format stays provisional per Dependencies / Assumptions.
-- KTD14. **Uploaded documents are parsed into addressable spans.** PDF via `pypdf`, DOCX via `python-docx`, and Markdown or plain text; each span has a stable id built from the document version hash, section, and character offsets. No OCR in v1. F3 matching (R20) compares new claims to confirmed claims by predicate plus normalized parameters, then by normalized quote text.
+- KTD14. **Uploaded documents are parsed into addressable spans.** PDF via `pypdf`, DOCX via `python-docx`, and Markdown or plain text; each span has a stable id built from the document version hash, section, and character offsets. No OCR in v1. F3 matching (R20) is deterministic and runs before drafting: the new version's spans are compared to the previous version's by whitespace-normalized text; claims from unchanged spans carry forward with their confirmation and no model call, and only new or changed spans go to the drafting agent. A claim drafted from a changed span is always unconfirmed, even if its predicate and parameters match an earlier confirmed claim.
 - KTD15. **Product login is email and password (argon2) with server-side sessions, invitations, and TOTP MFA required for owners and approvers.** The product holds customer read access and approval authority, so an unprotected login would undermine the export's "approved by" (R21). SSO is deferred.
 
 ### High-Level Technical Design
@@ -280,6 +286,10 @@ stateDiagram-v2
   [*] --> Unconfirmed: claims drafted
   Unconfirmed --> Current: approver confirms, checks pass
   Unconfirmed --> NotCheckable: no predicate or no connected system
+  Unconfirmed --> Contradicted: unconfirmed claim's observation disagrees
+  Unconfirmed --> CheckFailed: connector unreachable
+  Unconfirmed --> ExpiringSoon: date approaching
+  Unconfirmed --> Expired: date passes
   Current --> ExpiringSoon: review date or window within lead time
   ExpiringSoon --> Expired: date passes
   Current --> Contradicted: observation disagrees with claim
@@ -293,17 +303,20 @@ stateDiagram-v2
 Status rollup and trust, as directional pseudo-code:
 
 ```text
-item_status(item) =
+checkable(c) = c.predicate is not none and c not rejected
+item_status(item, framework) =
   worst_of([claim_result(c) for c in item.claims]
-           + date_checks(item, org.settings)
-           + [unconfirmed if any(not c.confirmed for c in checkable(item.claims))])
+           + date_checks(item, settings[framework])
+           + [unconfirmed if any(checkable(c) and not c.confirmed for c in item.claims)])
   using order: contradicted > expired > check_failed > expiring_soon > unconfirmed > not_checkable > current
-claim_result(c) =                               # unconfirmed claims are evaluated too (R8, AE2)
-  not_checkable  if c.predicate is none or no connected system serves it
+claim_result(c) =                               # unconfirmed and needs-review claims are evaluated too (R8, AE2)
+  not_checkable  if not checkable(c) or no connected system serves it
   check_failed   if latest observation failed
+  not_checkable  if latest observation is empty or flagged incomplete   # KTD7: never vacuously compliant
   else predicate.evaluate(latest observation)   # contradicted or current
-claim_flags(c) = {partially_checked} if c.scope exceeds observed scope   # R18, a cause, not a status
-item_trusted(item) = all(c.confirmed for c in checkable(item.claims))
+claim_flags(c) = {partially_checked} if c.scope exceeds observed scope per the org scope inventory   # R18, a cause, not a status
+item_trusted(item, framework) =
+  the claims producing the worst status are all confirmed, and at least one confirmed checkable claim exists
 ```
 
 ### Assumptions
@@ -324,7 +337,9 @@ Foundation (U1–U4) before anything else, because the event log, tenancy, and s
 pyproject.toml
 alembic.ini
 docker-compose.yml
+README.md
 .github/workflows/ci.yml
+deploy/aws-readonly-role.yaml
 src/passport/
   app.py                    # FastAPI app factory
   settings.py
@@ -376,16 +391,19 @@ tests/
 - **Goal:** A runnable, empty FastAPI service with database, tooling, and CI so every later unit lands into a working skeleton.
 - **Requirements:** Enables all; implements KTD1.
 - **Dependencies:** None.
-- **Files:** `pyproject.toml`, `uv.lock`, `alembic.ini`, `docker-compose.yml`, `src/passport/__init__.py`, `src/passport/app.py`, `src/passport/settings.py`, `src/passport/db/engine.py`, `src/passport/db/migrations/env.py`, `tests/conftest.py`, `tests/integration/test_health.py`, `.github/workflows/ci.yml`, `README.md`.
+- **Files:** `pyproject.toml`, `uv.lock`, `alembic.ini`, `docker-compose.yml`, `src/passport/__init__.py`, `src/passport/app.py`, `src/passport/settings.py`, `src/passport/db/engine.py`, `src/passport/db/migrations/env.py`, `src/passport/jobs.py`, `src/passport/worker.py`, `tests/conftest.py`, `tests/integration/test_health.py`, `tests/integration/test_db_roles.py`, `.github/workflows/ci.yml`, `README.md`.
 - **Approach:**
   1. `src/` layout package `passport`; settings via `pydantic-settings` from environment.
-  2. Docker Compose runs Postgres 16 for local dev and tests.
-  3. Test fixtures create a fresh database per session and run Alembic migrations.
-  4. CI runs lint, format check, type check, and tests against a Postgres service container.
+  2. Docker Compose runs Postgres 16 for local dev and tests, creating two roles: a table-owner role for migrations (`MIGRATION_DATABASE_URL`) and a non-owner app role without `BYPASSRLS` for web and worker (`DATABASE_URL`), per KTD5.
+  3. Test fixtures create a fresh database per session, run Alembic as the owner role, and connect the app as the app role.
+  4. Set up the `procrastinate` app, its schema migration, and the worker entry point here (KTD11), so U9 and U11 only register tasks.
+  5. CI runs lint, format check, type check, and tests against a Postgres service container.
 - **Execution note:** Mostly scaffolding; prove it with a health-check smoke test and a green CI run.
 - **Test scenarios:**
   - `GET /healthz` returns 200 with database connectivity reported.
   - Alembic upgrade on an empty database succeeds and downgrade to base succeeds.
+  - The app role connection reports that it neither owns the migrated tables nor has `BYPASSRLS`.
+  - A no-op task enqueued from the web process is executed by the worker.
 - **Verification:** A fresh clone runs tests and lint locally with documented commands; CI passes.
 
 ### U2. Tenancy, auth, roles, invitations
@@ -395,11 +413,13 @@ tests/
 - **Dependencies:** U1.
 - **Files:** `src/passport/tenancy/models.py`, `src/passport/tenancy/service.py`, `src/passport/auth/models.py`, `src/passport/auth/service.py`, `src/passport/auth/mfa.py`, `src/passport/auth/routes.py`, `src/passport/db/rls.py`, `src/passport/db/migrations/versions/*_tenancy_auth.py`, `tests/integration/test_tenancy_isolation.py`, `tests/unit/test_auth_service.py`.
 - **Approach:**
-  1. Org, User, Membership (role: owner, approver, viewer), Invitation tables; every tenant-owned table carries `org_id`.
-  2. A request dependency resolves the active org from the URL and verifies membership, then sets the per-transaction RLS setting.
-  3. RLS policies on every tenant table; the app role is not the owner and lacks `BYPASSRLS` (KTD5).
-  4. Invitations are single-use, expiring tokens bound to one org and role.
-  5. TOTP enrollment is required before an owner or approver can act (KTD15).
+  1. Org, User, Membership (role: owner, approver, viewer; `external` flag), Invitation tables; every tenant-owned table carries `org_id`.
+  2. A request dependency resolves the active org from the URL and verifies membership, then sets the per-transaction org and user RLS settings.
+  3. Org-keyed RLS policies on every domain table, plus the three narrow paths from KTD5: user-keyed policies on users and memberships, token-hash lookup for invitations, and the org-id-only `SECURITY DEFINER` function for the scheduler.
+  4. Invitations are single-use, expiring tokens (stored as hashes) bound to one org, role, and external flag.
+  5. TOTP enrollment is required before an owner or approver can act (KTD15); enrollment issues one-time recovery codes.
+  6. Password reset uses single-use, expiring tokens and still requires TOTP or a recovery code; an owner-initiated MFA reset for another member writes an event.
+  7. Login and TOTP attempts are throttled per account and per IP.
 - **Patterns to follow:** None in repo; follow FastAPI dependency-injection conventions.
 - **Test scenarios:**
   - Covers AE5. A consultant with memberships in X and Y requesting any X route sees only X rows; the same query with Y's context returns only Y rows.
@@ -409,6 +429,10 @@ tests/
   - An approver invited to X has no access to Y even if the consultant who invited them belongs to Y.
   - An owner without TOTP enrolled is redirected to enrollment before reaching org pages.
   - Wrong password and wrong TOTP code both fail without revealing which one was wrong.
+  - The org switcher for a consultant lists exactly that user's memberships and none of another user's.
+  - The scheduler's org-id function returns ids only; selecting any other column through it fails.
+  - A password reset link alone does not sign in an approver without TOTP or a recovery code; a used recovery code cannot be reused.
+  - After the configured number of failed login attempts, further attempts for that account are refused for the lockout period.
 - **Verification:** Cross-tenant tests pass at both the application and database layers.
 
 ### U3. Domain model and provenance log
@@ -418,7 +442,7 @@ tests/
 - **Dependencies:** U2.
 - **Files:** `src/passport/db/models.py`, `src/passport/provenance/events.py`, `src/passport/provenance/service.py`, `src/passport/provenance/actor.py`, `src/passport/db/migrations/versions/*_domain_events.py`, `tests/unit/test_hash_chain.py`, `tests/integration/test_event_log_append_only.py`.
 - **Approach:**
-  1. Tables: Document, DocumentVersion, EvidenceItem, Claim, CheckBinding, Observation, CheckRun, ItemStatus, Event.
+  1. Tables: Document, DocumentVersion, EvidenceItem, Claim, CheckBinding, Observation, CheckRun, ItemStatus (keyed by item and framework, per KTD9), Event. Document versions and evidence items carry last-approved-by, approval time, and next review date.
   2. An `Actor` value is either `Human(user_id, on_behalf_of_org)` or `Agent(run_id, model_id, prompt_version)`; every service write takes one.
   3. Event append computes `sha256(prev_hash || canonical_payload)` per org under a row lock on the org's chain head.
   4. Grant the app role `INSERT` and `SELECT` only on the event table.
@@ -441,12 +465,14 @@ tests/
   1. Ship control identifiers and short titles as data files (no copyrighted full text); load into reference tables at migration time.
   2. Items map to many controls across both frameworks; mapping changes write events.
   3. OrgFrameworkSettings: framework, audit type (SOC 2 Type I point in time, SOC 2 Type II period, ISO certification cycle), window start and end, policy-review cadence, access-review cadence, expiring-soon lead time, with defaults per R19.
+  4. Scope inventory per org: the in-scope systems a claim's scope refers to (production AWS account ids with labels, GitHub orgs, Google Workspace domains), declared in setup and editable later, with changes written as events. When the AWS role can call Organizations `ListAccounts`, setup pre-fills accounts for the user to mark as production. This is what R18 compares observed scope against.
 - **Test scenarios:**
   - Both catalogs load with unique control ids and no empty titles.
   - A new org gets defaults of 365-day policy review, 90-day access review, and 30-day lead time per framework.
   - A SOC 2 Type II window with end before start is rejected.
   - A SOC 2 Type I setting stores a single as-of date rather than a range.
   - Mapping one policy to a SOC 2 and an ISO control makes it appear in both per-framework views.
+  - Declaring two production AWS accounts in the scope inventory stores both, and removing one writes an event.
 - **Verification:** Settings round-trip through the service and are visible in events.
 
 ### U5. Document and evidence ingestion
@@ -458,13 +484,14 @@ tests/
 - **Approach:**
   1. File bytes go to object storage (S3 in production, local directory in dev) keyed by org and content hash.
   2. Each upload of an existing document creates a new DocumentVersion with its content hash and a review date (agent-suggested in U9, owner-editable).
-  3. Spans: section heading path, paragraph index, character offsets, and text; span id derived per KTD14.
+  3. Spans: section heading path, paragraph index, character offsets, and text; span id derived per KTD14. A new version is diffed against the previous version's spans by whitespace-normalized text, marking each span unchanged, changed, or new.
   4. Evidence items record collection time and source, flagged user-asserted when uploaded by a person (R13).
   5. Reject unsupported formats and files over a size cap with a clear message.
 - **Test scenarios:**
   - A DOCX policy with three headings yields spans whose ids are stable across two parses of the same file.
   - A PDF and the same content in Markdown yield the same span texts after whitespace normalization.
   - Uploading a second version keeps the first version retrievable and links both to one document.
+  - A second version that edits one paragraph marks that span changed and all others unchanged, including when only whitespace differs elsewhere.
   - Uploading an unsupported file type (for example `.xlsx`) is rejected with a message naming supported types.
   - An evidence upload records collection metadata as user-asserted.
   - A scanned PDF with no extractable text yields zero spans and a "no text found" notice instead of an empty draft.
@@ -496,11 +523,11 @@ tests/
 - **Goal:** The three live connectors and their setup flows.
 - **Requirements:** R5, R18; KTD6, KTD7; F1.
 - **Dependencies:** U6, U8.
-- **Files:** `src/passport/connectors/aws.py`, `src/passport/connectors/google_workspace.py`, `src/passport/connectors/github.py`, `src/passport/connectors/setup.py`, `tests/integration/test_aws_connector.py`, `tests/integration/test_google_connector.py`, `tests/integration/test_github_connector.py`, `tests/fixtures/provider_responses/`.
+- **Files:** `src/passport/connectors/aws.py`, `src/passport/connectors/google_workspace.py`, `src/passport/connectors/github.py`, `src/passport/connectors/setup.py`, `deploy/aws-readonly-role.yaml`, `tests/integration/test_aws_connector.py`, `tests/integration/test_google_connector.py`, `tests/integration/test_github_connector.py`, `tests/fixtures/provider_responses/`.
 - **Approach:**
   1. AWS: generate a per-connection external id; show a CloudFormation template granting `SecurityAudit` with that external id; verify on setup that assume-role without the external id fails. Reads use the IAM credential report, account summary, CloudTrail, S3 encryption and public-access block, and password policy.
   2. Google Workspace: OAuth with Admin SDK Directory read-only scopes; setup tells the user an administrator must consent; tokens go to the vault.
-  3. GitHub: GitHub App with read-only permissions; reads org two-factor requirement, members, and branch protection.
+  3. GitHub: GitHub App with read-only permissions; reads org two-factor requirement, members, and branch protection. Because every customer installs the same app, setup binds an installation to the requesting org: a server-side state value tied to the session and org, plus user-to-server OAuth confirming the installing user can access that installation. An installation already bound to another org is rejected.
   4. Each connector declares which predicate capabilities it serves (U8) and the scope identifiers it covers.
   5. Tests replay recorded provider responses; no live calls in CI.
 - **Test scenarios:**
@@ -509,6 +536,7 @@ tests/
   - A Google response with an empty user list under insufficient admin rights yields an empty observation flagged for missing admin consent.
   - A GitHub org without the two-factor requirement produces an observation with the setting off.
   - A revoked GitHub installation yields an unauthorized outcome.
+  - A setup callback carrying an installation id the user cannot access, or one already bound to another org, is rejected and no connection is created.
   - Paginated responses are fully consumed and the completeness flag is set.
 - **Verification:** Replay tests pass; a manual smoke against a sandbox account is documented in the README.
 
@@ -519,12 +547,13 @@ tests/
 - **Dependencies:** U6.
 - **Files:** `src/passport/predicates/registry.py`, `src/passport/predicates/definitions/identity.py`, `src/passport/predicates/definitions/cloud.py`, `src/passport/predicates/definitions/code.py`, `tests/unit/test_predicates.py`.
 - **Approach:**
-  1. Each predicate: id, version, parameter schema, required connector capability, `evaluate(observation, params) -> pass/fail with offenders`, scope rule, and description template.
+  1. Each predicate: id, version, parameter schema, required connector capability, `evaluate(observation, params) -> pass/fail with offenders`, scope rule, and description template. Scope rules compare the observation's covered scope with the matching entries in the org scope inventory (U4); inventory entries with no observation are named as unchecked scope, and a claim scope with no inventory entry is flagged partially checked with the cause "scope not declared".
   2. Start with the predicates the three connectors can serve; record the list in the registry module docstring.
   3. Predicate versions are stored on claims so a later change does not silently alter confirmed claims.
 - **Test scenarios:**
   - `mfa_enforced(scope=all_users)` passes when every observed user has MFA and fails naming each user without it.
-  - Covers AE7. `mfa_enforced(scope=all_production_accounts)` against an observation covering one of two configured production accounts returns pass with a partial-scope marker.
+  - Covers AE7. `mfa_enforced(scope=all_production_accounts)` against an observation covering one of two inventory-declared production accounts returns pass with a partial-scope marker naming the unchecked account.
+  - The same claim in an org with no production accounts declared returns pass flagged "scope not declared".
   - Invalid parameters (for example a negative password length) are rejected by the schema.
   - Each predicate's description template renders a readable sentence for sample parameters.
   - A claim bound to predicate version 1 still evaluates with version 1 after version 2 is registered.
@@ -537,9 +566,9 @@ tests/
 - **Dependencies:** U5, U8.
 - **Files:** `src/passport/agent/drafting.py`, `src/passport/agent/tools.py`, `src/passport/agent/prompts/draft_claims_v1.md`, `src/passport/agent/prompts/verify_support_v1.md`, `src/passport/agent/client.py`, `tests/unit/test_drafting_verification.py`, `tests/eval/test_drafting_eval.py`, `tests/eval/gold/`.
 - **Approach:**
-  1. Drafting runs as a job when a document version is added; it creates an agent run record and an `Agent` actor.
+  1. Drafting runs as a job when a document version is added; it creates an agent run record and an `Agent` actor. For a new version of an existing document it drafts only the spans U5's span diff marks new or changed (KTD14).
   2. Tools are bound to the run's org: read spans of this version, list predicates, propose claim. No confirm or approve tool (KTD10).
-  3. Deterministic checks per KTD4; claims failing quote verification are discarded and counted; support failures become needs-review.
+  3. Deterministic checks per KTD4; claims failing quote verification are discarded and counted; support failures become needs-review, which counts as unconfirmed for status and trust and carries the failed-support reason to the approver.
   4. Sentences matched to no predicate become not-checkable claims with their quote, so the approver sees them.
   5. Suggest a review date from the policy text when present; owners can edit it.
   6. Unit tests stub the model client; the eval suite runs against the live API on a hand-labeled gold set and reports precision and recall per predicate.
@@ -561,13 +590,18 @@ tests/
 - **Dependencies:** U9.
 - **Files:** `src/passport/claims/service.py`, `src/passport/claims/matching.py`, `tests/unit/test_claim_matching.py`, `tests/integration/test_approval_flow.py`.
 - **Approach:**
-  1. Confirm and edit record the approver, whether they acted on behalf of a client (R21), and the predicate version and check description they saw.
-  2. Edits to a confirmed claim create a new claim revision that needs confirmation again.
-  3. Rejected claims stay in history with the rejecting approver.
-  4. Matching per KTD14 when a new document version's drafts arrive; matched claims inherit confirmation with an event linking both revisions.
+  1. Owners and approvers may act (KTD5). Confirm and edit record the actor, whether they acted on behalf of a client (set when the membership is external, R21), and the predicate version and check description they saw.
+  2. Editing means choosing a predicate from the registry and filling its typed parameters, with the check description previewed before saving; it creates a new claim revision that needs confirmation again.
+  3. Needs-review claims show the failed-support reason and can be confirmed only after the actor acknowledges that reason. Not-checkable claims can only be dismissed.
+  4. Rejected and dismissed claims stay in history with the acting user.
+  5. Using U5's span diff, claims from unchanged spans carry forward with their confirmation and an event linking both revisions (KTD14).
+  6. Document approval: a human-only operation that marks a policy version or evidence item reviewed. It records the approver and on-behalf-of (R21), sets last-approved and the next review date from that framework's cadence, and writes an event. This supplies R1's "last approved by" and clears an expired review date (R9).
 - **Test scenarios:**
-  - Covers AE9. A new version changing one sentence keeps four of five claims confirmed and leaves the changed one unconfirmed.
-  - A changed numeric parameter (password length 12 to 14) is treated as changed, not matched.
+  - Covers AE9. A new version changing one sentence keeps the four claims from unchanged spans confirmed without a model call, and only the changed span is sent for drafting.
+  - A reworded sentence whose new draft binds the same predicate and parameters as before still arrives unconfirmed.
+  - A changed numeric parameter (password length 12 to 14) in a changed span arrives unconfirmed.
+  - An approver approving an expired policy version sets last-approved to them and the next review date one cadence ahead, and the policy returns to current on recompute.
+  - A needs-review claim cannot be confirmed without acknowledging its failed-support reason.
   - A consultant confirming for a client is recorded as a consultant acting on behalf of the org, distinct from the client approver.
   - An approver editing a claim's parameters creates a new revision; the old revision's confirmation does not apply to it.
   - A viewer-role user attempting to confirm receives 403 and no event is written.
@@ -581,17 +615,18 @@ tests/
 - **Dependencies:** U6, U8, U10.
 - **Files:** `src/passport/checks/runner.py`, `src/passport/checks/jobs.py`, `src/passport/checks/models.py`, `tests/integration/test_check_runner.py`.
 - **Approach:**
-  1. `procrastinate` worker with a periodic task enqueueing one job per org, staggered by an org-derived offset.
+  1. Register on the U1 worker a periodic task that lists org ids through the KTD5 scheduler function and enqueues one job per org, staggered by an org-derived offset.
   2. A run fetches each connector capability once per org and evaluates all claims needing it.
   3. Per-claim outcomes stored on the CheckRun; a retry skips completed claims.
-  4. On-demand re-run is owner-only and limited to one per org per 15 minutes.
+  4. On-demand re-run is owner-only; while a run for the org is queued or running, a further request attaches to that run instead of starting another.
   5. A run that exceeds its deadline finishes with remaining claims marked check failed.
 - **Test scenarios:**
   - Covers AE1. A confirmed MFA claim against a fake with one MFA-off account records a failing observation naming the account.
   - Covers AE6. A fake identity connector returning unauthorized marks dependent claims check failed while cloud claims still evaluate.
   - Re-running a half-completed run does not duplicate observations for already-completed claims.
   - A rate-limited response marks the claim check failed and never contradicted.
-  - A second on-demand re-run within 15 minutes is refused with the time until the next allowed run.
+  - A re-run requested while one is already running returns that run instead of enqueueing a duplicate.
+  - Covers AE6. An empty user list from a fake identity connector yields not checkable, never current.
   - No model client is constructed during a check run (asserted by a test double that fails on use).
 - **Verification:** A seeded org's full run completes against fakes and records coverage counts.
 
@@ -602,7 +637,7 @@ tests/
 - **Dependencies:** U4, U11.
 - **Files:** `src/passport/status/engine.py`, `src/passport/status/causes.py`, `src/passport/status/templates/`, `tests/unit/test_status_engine.py`.
 - **Approach:**
-  1. Pure function per the HTD pseudo-code; date checks use review dates, cadences, the audit window, and the lead time from U4.
+  1. Pure function per the HTD pseudo-code; date checks use review dates, cadences, the audit window, and the lead time from U4, computed per framework the item maps to. An item mapped to no control uses the org's first-configured framework and is labeled unmapped.
   2. Persist status, trust, and causes; write an event only when status, trust, or causes change.
   3. Cause templates render from structured fields (claim, offenders, systems checked against, dates).
 - **Execution note:** Implement test-first; the engine is pure and every AE maps to a table-driven case.
@@ -613,6 +648,9 @@ tests/
   - Covers AE6. A failed check with a prior success yields check failed showing the last verified date.
   - Covers AE7. A partial-scope pass yields current flagged partially checked, naming the checked and unchecked accounts.
   - An item whose checkable claims all pass but one is unconfirmed yields unconfirmed, untrusted.
+  - A confirmed claim contradicted while an unrelated claim on the same item is unconfirmed yields contradicted, trusted.
+  - An item with no claims, or only not-checkable claims, is untrusted.
+  - Evidence inside the SOC 2 window but outside the ISO window shows current in the SOC 2 view and expired in the ISO view.
   - A policy whose review date is 20 days away with a 30-day lead time yields expiring soon.
   - An item that is both expired and contradicted shows contradicted and lists both causes.
   - An item whose only claims are not checkable shows not checkable.
@@ -647,16 +685,19 @@ tests/
 - **Files:** `src/passport/web/routes/*.py`, `src/passport/web/templates/*.html`, `src/passport/web/static/`, `tests/integration/test_web_passport.py`, `tests/integration/test_web_setup.py`.
 - **Approach:**
   1. Org switcher for multi-org users; every page URL carries the org id.
-  2. Setup wizard order per F1: connect systems, settings, upload, map controls, invite approver.
-  3. Passport table per framework with status, trust, last checked, approver, and causes.
-  4. Claim review page shows quote, predicate check description, and confirm, edit, reject actions (approver only).
-  5. HTMX for inline actions; CSRF protection on all forms.
+  2. Setup wizard order per F1: connect systems, settings and scope inventory (U4), upload, map controls, invite approver. Each connection step shows verifying, success, or the U7 failure message with a retry action.
+  3. Passport table per framework with status, trust, last checked, approver, and causes, plus an approve action on items for owners and approvers (U10).
+  4. Claim review page shows quote, predicate check description, needs-review reason when present, and the U10 actions, for owners and approvers.
+  5. The re-run control shows idle with last completed run time, queued, running, or failed with reason.
+  6. HTMX for inline actions; CSRF protection on all forms.
 - **Test scenarios:**
   - The passport page for a seeded org shows each item's status, last checked date, and approver or "unapproved".
   - Switching frameworks filters items to those mapped to that framework.
   - A viewer sees no confirm buttons, and a forged confirm POST is rejected.
   - A form POST without a CSRF token is rejected.
   - The setup wizard can be resumed at the first incomplete step.
+  - A failed AWS verification shows the trust-policy message and a retry action that re-runs verification.
+  - Pressing re-run shows queued, then running, and the passport reflects the new results when the run completes.
 - **Verification:** A manual walkthrough of F1 against fakes completes end to end.
 
 ### U15. Auditor export
@@ -698,7 +739,7 @@ tests/
 
 ## Documentation / Operational Notes
 
-- `README.md` documents local setup, environment variables (`DATABASE_URL`, `ANTHROPIC_API_KEY`, `KMS_KEY_ID`, `SMTP_*`, object storage settings), and how to run the worker.
+- `README.md` documents local setup, environment variables (`DATABASE_URL`, `MIGRATION_DATABASE_URL`, `ANTHROPIC_API_KEY`, `KMS_KEY_ID`, `SMTP_*`, object storage settings, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`), which of them come from Secrets Manager in production (KTD6), the rotation procedure, and how to run the worker.
 - The AWS CloudFormation template for customer onboarding ships in `deploy/aws-readonly-role.yaml` (created in U7).
 
 ---
@@ -709,7 +750,7 @@ tests/
 |---|---|---|
 | Lint | `uv run ruff check .` | All units |
 | Format | `uv run ruff format --check .` | All units |
-| Types | `uv run mypy src` | All units |
+| Types | `uv run mypy --strict src` | All units |
 | Unit and integration tests | `uv run pytest -m "not eval"` (needs Postgres from `docker compose up -d db`) | All units |
 | Migrations | `uv run alembic upgrade head` then `uv run alembic downgrade base` on a fresh database | U1–U5 and any unit adding a migration |
 | Drafting eval | `uv run pytest -m eval` (needs `ANTHROPIC_API_KEY`; not in default CI) | U9 and any prompt or model change |
