@@ -13,6 +13,8 @@ from passport.db.engine import get_engine, get_sessionmaker
 from passport.settings import Settings, get_settings, libpq_url
 
 # Parallel workers may each use their own database via PASSPORT_TEST_DB.
+# Tests use a throwaway local vault key; real deploys must set their own or use KMS.
+os.environ.setdefault("VAULT_LOCAL_MASTER_KEY", "dGVzdC1vbmx5LXZhdWx0LW1hc3Rlci1rZXktMzJieXQ=")
 TEST_DB = os.environ.get("PASSPORT_TEST_DB", "passport_test")
 
 
