@@ -22,15 +22,26 @@ def test_app_role_neither_owns_tables_nor_bypasses_rls(database_urls: dict[str, 
 
 
 def test_migrations_downgrade_to_base_and_upgrade_again(database_urls: dict[str, str]) -> None:
-    config = alembic_config(database_urls["owner"])
-
-    command.downgrade(config, "base")
-    with psycopg.connect(libpq_url(database_urls["owner"])) as conn:
-        leftover = conn.execute(
-            "SELECT count(*) FROM pg_tables WHERE schemaname = 'public' "
-            "AND tablename <> 'alembic_version'"
-        ).fetchone()
-    command.upgrade(config, "heads")
+    # A separate database, so dropping and recreating types cannot invalidate type
+    # caches held by connections other tests already opened.
+    owner_url = database_urls["owner"].rsplit("/", 1)[0] + "/passport_test_roundtrip"
+    admin = libpq_url(database_urls["owner"].rsplit("/", 1)[0] + "/postgres")
+    with psycopg.connect(admin, autocommit=True) as conn:
+        conn.execute("DROP DATABASE IF EXISTS passport_test_roundtrip WITH (FORCE)")
+        conn.execute("CREATE DATABASE passport_test_roundtrip")
+    config = alembic_config(owner_url)
+    try:
+        command.upgrade(config, "heads")
+        command.downgrade(config, "base")
+        with psycopg.connect(libpq_url(owner_url)) as conn:
+            leftover = conn.execute(
+                "SELECT count(*) FROM pg_tables WHERE schemaname = 'public' "
+                "AND tablename <> 'alembic_version'"
+            ).fetchone()
+        command.upgrade(config, "heads")
+    finally:
+        with psycopg.connect(admin, autocommit=True) as conn:
+            conn.execute("DROP DATABASE IF EXISTS passport_test_roundtrip WITH (FORCE)")
 
     assert leftover == (0,)
 

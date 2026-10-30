@@ -22,6 +22,13 @@ def _with_database(url: str, database: str) -> str:
     return url.rsplit("/", 1)[0] + "/" + database
 
 
+# Point every settings read at the test database before any module captures a URL at import
+# time (the job queue's connector is built when ``passport.jobs`` is first imported).
+_base = Settings()
+os.environ["DATABASE_URL"] = _with_database(_base.database_url, TEST_DB)
+os.environ["MIGRATION_DATABASE_URL"] = _with_database(_base.migration_database_url, TEST_DB)
+
+
 def alembic_config(url: str) -> Config:
     config = Config("alembic.ini")
     config.attributes["url"] = url

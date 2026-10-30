@@ -1,0 +1,7 @@
+{
+  "total_count": 2,
+  "repository_selection": "all",
+  "repositories": [
+    {"id": 502, "name": "web", "full_name": "example-co/web", "default_branch": "trunk", "archived": false, "private": true}
+  ]
+}

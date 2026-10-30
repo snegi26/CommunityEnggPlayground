@@ -1,0 +1,6 @@
+{
+  "total_count": 1,
+  "installations": [
+    {"id": 42424242, "app_id": 123456, "target_type": "Organization", "account": {"login": "example-co", "id": 9100001, "type": "Organization"}, "repository_selection": "all"}
+  ]
+}

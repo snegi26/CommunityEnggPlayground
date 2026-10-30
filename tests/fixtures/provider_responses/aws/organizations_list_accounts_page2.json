@@ -1,0 +1,5 @@
+{
+  "Accounts": [
+    {"Id": "777788889999", "Arn": "arn:aws:organizations::111122223333:account/o-abc123/777788889999", "Email": "aws-staging@example.com", "Name": "Staging", "Status": "ACTIVE", "JoinedMethod": "INVITED"}
+  ]
+}

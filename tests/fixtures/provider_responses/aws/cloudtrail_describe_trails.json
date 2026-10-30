@@ -1,0 +1,6 @@
+{
+  "trailList": [
+    {"Name": "org-trail", "TrailARN": "arn:aws:cloudtrail:us-east-1:111122223333:trail/org-trail", "HomeRegion": "us-east-1", "IsMultiRegionTrail": true, "IsOrganizationTrail": true, "S3BucketName": "example-cloudtrail-logs"},
+    {"Name": "legacy-eu", "TrailARN": "arn:aws:cloudtrail:us-east-1:111122223333:trail/legacy-eu", "HomeRegion": "us-east-1", "IsMultiRegionTrail": false, "IsOrganizationTrail": false, "S3BucketName": "example-legacy-logs"}
+  ]
+}

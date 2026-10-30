@@ -1,0 +1,4 @@
+[
+  {"login": "octo-ana", "id": 1001, "type": "User", "site_admin": false},
+  {"login": "octo-ben", "id": 1002, "type": "User", "site_admin": false}
+]

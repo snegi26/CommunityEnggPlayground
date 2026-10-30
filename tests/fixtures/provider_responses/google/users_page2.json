@@ -1,0 +1,6 @@
+{
+  "kind": "admin#directory#users",
+  "users": [
+    {"kind": "admin#directory#user", "id": "100000000000000000003", "primaryEmail": "cy@example.com", "isEnrolledIn2Sv": true, "isEnforcedIn2Sv": true, "suspended": false}
+  ]
+}

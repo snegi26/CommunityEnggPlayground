@@ -1,0 +1,8 @@
+{
+  "login": "example-co",
+  "id": 9100001,
+  "type": "Organization",
+  "name": "Example Co",
+  "two_factor_requirement_enabled": false,
+  "members_can_create_repositories": true
+}

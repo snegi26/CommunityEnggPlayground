@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Read-only role for Passport compliance checks. Trusts the Passport platform
+  principal only when it presents the external id Passport generated for this
+  connection, and grants only the AWS-managed SecurityAudit policy (not
+  ReadOnlyAccess, which can read data such as S3 objects).
+
+Parameters:
+  PlatformPrincipalArn:
+    Type: String
+    Description: The Passport principal allowed to assume this role (shown in setup).
+    AllowedPattern: "^arn:aws[a-z-]*:iam::\\d{12}:(role|user)/.+$"
+  ExternalId:
+    Type: String
+    Description: The external id Passport generated for this connection (shown in setup).
+    MinLength: 32
+    MaxLength: 1224
+  RoleName:
+    Type: String
+    Default: PassportReadOnly
+    Description: Name of the role to create.
+
+Resources:
+  PassportReadOnlyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      Description: Passport read-only compliance checks (SecurityAudit).
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Ref PlatformPrincipalArn
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref ExternalId
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/SecurityAudit
+
+Outputs:
+  RoleArn:
+    Description: Paste this role ARN into Passport setup to verify the connection.
+    Value: !GetAtt PassportReadOnlyRole.Arn

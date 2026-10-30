@@ -1,0 +1,7 @@
+{
+  "total_count": 2,
+  "repository_selection": "all",
+  "repositories": [
+    {"id": 501, "name": "api", "full_name": "example-co/api", "default_branch": "main", "archived": false, "private": true}
+  ]
+}

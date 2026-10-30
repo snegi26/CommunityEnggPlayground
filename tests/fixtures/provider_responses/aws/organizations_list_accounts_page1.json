@@ -1,0 +1,7 @@
+{
+  "Accounts": [
+    {"Id": "111122223333", "Arn": "arn:aws:organizations::111122223333:account/o-abc123/111122223333", "Email": "aws-root@example.com", "Name": "Management", "Status": "ACTIVE", "JoinedMethod": "CREATED"},
+    {"Id": "444455556666", "Arn": "arn:aws:organizations::111122223333:account/o-abc123/444455556666", "Email": "aws-prod@example.com", "Name": "Production", "Status": "ACTIVE", "JoinedMethod": "CREATED"}
+  ],
+  "NextToken": "page-2-token"
+}

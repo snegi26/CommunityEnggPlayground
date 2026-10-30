@@ -1,0 +1,10 @@
+{
+  "url": "https://api.github.com/repos/example-co/api/branches/main/protection",
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": true,
+    "require_code_owner_reviews": false,
+    "required_approving_review_count": 2
+  },
+  "enforce_admins": {"enabled": true},
+  "allow_force_pushes": {"enabled": false}
+}

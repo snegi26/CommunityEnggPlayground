@@ -1,0 +1,8 @@
+{
+  "kind": "admin#directory#users",
+  "users": [
+    {"kind": "admin#directory#user", "id": "100000000000000000001", "primaryEmail": "ana@example.com", "isEnrolledIn2Sv": true, "isEnforcedIn2Sv": true, "suspended": false},
+    {"kind": "admin#directory#user", "id": "100000000000000000002", "primaryEmail": "ben@example.com", "isEnrolledIn2Sv": false, "isEnforcedIn2Sv": false, "suspended": false}
+  ],
+  "nextPageToken": "CAIQ-page-2"
+}
