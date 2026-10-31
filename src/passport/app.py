@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from passport.auth.routes import router as auth_router
 from passport.db.engine import get_session
+from passport.export.routes import router as export_router
 
 
 def create_app() -> FastAPI:
@@ -19,4 +20,5 @@ def create_app() -> FastAPI:
         return {"status": "ok", "database": "ok"}
 
     app.include_router(auth_router)
+    app.include_router(export_router)
     return app
