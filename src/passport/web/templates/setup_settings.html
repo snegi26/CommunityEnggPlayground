@@ -1,0 +1,69 @@
+{% extends "setup_base.html" %}
+{% block step %}
+<h2>2. Audit settings and scope inventory</h2>
+{% if saved %}<p class="message success" role="status">Settings saved.</p>{% endif %}
+{% for fw in frameworks %}
+<section class="framework" aria-labelledby="fw-{{ fw.framework.value }}">
+  <h3 id="fw-{{ fw.framework.value }}">{{ fw.label }} <span class="badge {{ 'done' if fw.saved else 'todo' }}">{{ "Saved" if fw.saved else "Audit dates not set" }}</span></h3>
+  {% if settings_error and settings_error.framework == fw.framework.value %}<p class="message error" role="alert">{{ settings_error.text }}</p>{% endif %}
+  <form method="post" action="/orgs/{{ org_id }}/setup/settings/{{ fw.framework.value }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <fieldset {% if not is_owner %}disabled{% endif %}>
+      <p><label>Audit type<br><select name="audit_type">
+        {% for value, label in fw.audit_types %}<option value="{{ value }}" {% if value == fw.audit_type %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select></label></p>
+      <p><label>As-of date (Type I only) <input type="date" name="as_of_date" value="{{ fw.as_of_date or '' }}"></label></p>
+      <p><label>Window start <input type="date" name="window_start" value="{{ fw.window_start or '' }}"></label>
+         <label>Window end <input type="date" name="window_end" value="{{ fw.window_end or '' }}"></label></p>
+      <p><label>Policy review every (days) <input type="number" min="1" name="policy_review_days" value="{{ fw.policy_review_days }}"></label></p>
+      <p><label>Access review every (days) <input type="number" min="1" name="access_review_days" value="{{ fw.access_review_days }}"></label></p>
+      <p><label>Expiring-soon lead time (days) <input type="number" min="0" name="expiring_soon_days" value="{{ fw.expiring_soon_days }}"></label></p>
+      {% if is_owner %}<p><button type="submit">Save {{ fw.label }} settings</button></p>{% endif %}
+    </fieldset>
+  </form>
+</section>
+{% endfor %}
+
+<section aria-labelledby="scope-h">
+  <h3 id="scope-h">Scope inventory</h3>
+  <p>Systems in scope for the audit. Claims about "all production accounts" are checked against the entries marked production.</p>
+  {% if scope_error %}<p class="message error" role="alert">{{ scope_error }}</p>{% endif %}
+  {% if scope_entries %}
+  <table>
+    <thead><tr><th scope="col">Kind</th><th scope="col">Identifier</th><th scope="col">Label</th><th scope="col">Production</th>{% if is_owner %}<th scope="col">Actions</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for e in scope_entries %}
+      <tr>
+        <td>{{ scope_kind_labels.get(e.kind, e.kind) }}</td><td><code>{{ e.identifier }}</code></td><td>{{ e.label }}</td>
+        <td>{{ "Production" if e.production else "Not production" }}</td>
+        {% if is_owner %}
+        <td>
+          <form method="post" action="/orgs/{{ org_id }}/setup/scope/{{ e.id }}/production" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            {% if not e.production %}<input type="hidden" name="production" value="true">{% endif %}
+            <button type="submit">{{ "Mark not production" if e.production else "Mark production" }}</button>
+          </form>
+          <form method="post" action="/orgs/{{ org_id }}/setup/scope/{{ e.id }}/remove" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit">Remove</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty">No systems in scope yet. Connecting AWS fills in its accounts.</p>{% endif %}
+  {% if is_owner %}
+  <form method="post" action="/orgs/{{ org_id }}/setup/scope">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <p><label>Kind <select name="kind">{% for value, label in scope_kinds %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+      <label>Identifier <input name="identifier" required></label>
+      <label>Label <input name="label"></label>
+      <label><input type="checkbox" name="production" value="true"> Production</label>
+      <button type="submit">Add to scope</button></p>
+  </form>
+  {% endif %}
+</section>
+<p><a href="/orgs/{{ org_id }}/setup/upload">Next: upload policies and evidence</a></p>
+{% endblock %}

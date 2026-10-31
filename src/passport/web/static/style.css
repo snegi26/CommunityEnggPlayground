@@ -1,0 +1,27 @@
+/* Minimal styles. Status is always written out in text; colour only reinforces it. */
+body { font-family: system-ui, sans-serif; margin: 0; line-height: 1.45; color: #1a1a1a; }
+header.site { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding: .6rem 1rem; border-bottom: 1px solid #ccc; }
+header.site .brand { font-weight: 600; text-decoration: none; color: inherit; }
+header.site nav a { margin-right: .8rem; }
+header.site form { display: inline-flex; gap: .4rem; align-items: center; margin: 0; }
+header.site .logout { margin-left: auto; }
+main { padding: 1rem; max-width: 72rem; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #ccc; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+.badge { display: inline-block; padding: 0 .4rem; border: 1px solid #555; border-radius: .25rem; font-size: .85em; font-weight: 600; }
+.status-contradicted, .status-expired, .status-check_failed, .run-failed { border-color: #a00; background: #fde8e8; }
+.status-expiring_soon, .status-unconfirmed, .claim-needs_review { border-color: #a60; background: #fff3dc; }
+.status-current, .done, .claim-confirmed { border-color: #070; background: #e6f4e6; }
+.message { padding: .5rem .75rem; border: 1px solid #888; }
+.message.error { border-color: #a00; }
+.message.success { border-color: #070; }
+.empty, .meta { color: #555; }
+form.inline { display: inline-block; margin-right: .5rem; }
+.steps li.current { font-weight: 600; }
+.tabs { list-style: none; padding: 0; display: flex; gap: 1rem; }
+.tabs a[aria-current] { font-weight: 600; }
+article.claim { border-top: 1px solid #ccc; padding: .5rem 0; }
+blockquote { margin: .25rem 0; padding-left: .75rem; border-left: 3px solid #888; }
+code.uri { word-break: break-all; }
+.verifying { display: none; }
+.htmx-request .verifying, .htmx-request.verifying { display: inline; }

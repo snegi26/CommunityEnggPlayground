@@ -1,0 +1,63 @@
+{% extends "setup_base.html" %}
+{% block step %}
+<h2>1. Connect systems (read-only)</h2>
+{% if success %}<p class="message success" role="status">{{ success }}</p>{% endif %}
+
+<section aria-labelledby="connected-h">
+  <h3 id="connected-h">Connected</h3>
+  {% if connections %}
+  <ul>{% for c in connections %}<li>{{ kind_labels.get(c.kind, c.kind) }}: {{ c.display_name }} <span class="badge done">Connected</span></li>{% endfor %}</ul>
+  {% else %}<p class="empty">No system is connected yet.</p>{% endif %}
+</section>
+
+<section class="connector" aria-labelledby="aws-h">
+  <h3 id="aws-h">AWS</h3>
+  {% if aws_error %}
+  <div class="message error" role="alert"><strong>Verification failed.</strong> {{ aws_error }}</div>
+  {% endif %}
+  {% if aws %}
+    <p>{{ aws.instructions }}</p>
+    <p>External id: <code>{{ aws.external_id }}</code> &middot; <a href="/orgs/{{ org_id }}/setup/aws/template">Download the CloudFormation template</a></p>
+    {% if is_owner %}
+    <form method="post" action="/orgs/{{ org_id }}/setup/aws/verify" hx-disabled-elt="button">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="token" value="{{ aws.token }}">
+      <p><label for="role_arn">Role ARN from the stack outputs</label><br>
+        <input id="role_arn" name="role_arn" size="60" value="{{ role_arn or '' }}" required></p>
+      <p><button type="submit">{{ "Retry verification" if aws_error else "Verify" }}</button>
+        <span class="verifying" role="status">Verifying&hellip;</span></p>
+    </form>
+    {% endif %}
+  {% elif is_owner %}
+    <form method="post" action="/orgs/{{ org_id }}/setup/aws/start">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit">{{ "Start again" if aws_restart else "Connect an AWS account" }}</button>
+    </form>
+  {% endif %}
+</section>
+
+<section class="connector" aria-labelledby="google-h">
+  <h3 id="google-h">Google Workspace</h3>
+  {% if google_error %}<div class="message error" role="alert"><strong>Connection failed.</strong> {{ google_error }}</div>{% endif %}
+  <p>A Workspace administrator must approve read-only directory access.</p>
+  {% if is_owner %}
+  <form method="post" action="/orgs/{{ org_id }}/setup/google/start">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <p><label for="domain">Workspace domain</label><br><input id="domain" name="domain" value="{{ domain or '' }}" placeholder="example.com" required></p>
+    <p><button type="submit">{{ "Retry" if google_error else "Connect Google Workspace" }}</button></p>
+  </form>
+  {% endif %}
+</section>
+
+<section class="connector" aria-labelledby="github-h">
+  <h3 id="github-h">GitHub</h3>
+  {% if github_error %}<div class="message error" role="alert"><strong>Connection failed.</strong> {{ github_error }}</div>{% endif %}
+  {% if is_owner %}
+  <form method="post" action="/orgs/{{ org_id }}/setup/github/start">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit">{{ "Retry" if github_error else "Install the GitHub app" }}</button>
+  </form>
+  {% endif %}
+</section>
+<p><a href="/orgs/{{ org_id }}/setup/settings">Next: audit settings and scope</a></p>
+{% endblock %}

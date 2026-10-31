@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Claims: {{ document.title }}{% endblock %}
+{% block content %}
+<h1>Claims in {{ document.title }}, version {{ version.version_number }}</h1>
+{% if uploaded %}<p class="message success" role="status">Uploaded. The agent is drafting claims from new and changed sentences; unchanged sentences kept their earlier decisions.</p>{% endif %}
+{% if no_text %}<p class="message error">No text was found in this file (for example a scanned PDF), so no claims can be drafted.</p>{% endif %}
+{% if drafting %}<p>Drafting: {{ drafting.status }}{% if drafting.failure_reason %} ({{ drafting.failure_reason }}){% endif %}.</p>{% endif %}
+{% if error %}<p class="message error" role="alert">{{ error }}</p>{% endif %}
+<p>A confirmed claim is checked against live systems and its findings are trusted. Unconfirmed claims are checked too, but marked not trusted.</p>
+{% if claims %}
+{% for v in claims %}
+<article class="claim" id="claim-{{ v.claim.id }}">
+  <blockquote>{{ v.claim.quote }}</blockquote>
+  <p><span class="badge claim-{{ v.claim.state.value }}">{{ v.state_label }}</span>
+    {% if v.confirmed_by %} by {{ v.confirmed_by }}{% if v.claim.confirmed_on_behalf %} (on behalf of the organization){% endif %}{% endif %}</p>
+  {% if v.checkable %}
+  <p><strong>How it is checked:</strong> {{ v.claim.check_description }}</p>
+  {% else %}
+  <p><strong>Not checkable:</strong> no repeatable check fits this sentence.</p>
+  {% endif %}
+  {% if v.claim.needs_review_reason %}<p class="needs-review"><strong>Needs review:</strong> {{ v.claim.needs_review_reason }}</p>{% endif %}
+
+  {% if can_approve and v.open %}
+  <div class="actions">
+    {% if v.checkable %}
+      {% if v.claim.state.value != "confirmed" %}
+      <form method="post" action="/orgs/{{ org_id }}/claims/{{ v.claim.id }}/confirm" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        {% if v.claim.state.value == "needs_review" %}
+        <label><input type="checkbox" name="acknowledge" value="true" required> I have read why this quote may not support the check</label>
+        {% endif %}
+        <button type="submit">Confirm</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/orgs/{{ org_id }}/claims/{{ v.claim.id }}/reject" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label>Reason <input name="reason"></label>
+        <button type="submit">Reject</button>
+      </form>
+      {% set e = editing if editing and editing.claim_id == v.claim.id else None %}
+      <details {% if e %}open{% endif %}>
+        <summary>Edit the check</summary>
+        {% if e and e.error %}<p class="message error" role="alert">{{ e.error }}</p>{% endif %}
+        <form method="post" action="/orgs/{{ org_id }}/claims/{{ v.claim.id }}/edit" class="edit">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          {% set chosen = e.predicate_id if e and e.predicate_id else v.claim.predicate_id %}
+          <p><label>Check <select name="predicate_id">
+            {% for pid, title in predicates %}<option value="{{ pid }}" {% if pid == chosen %}selected{% endif %}>{{ title }}</option>{% endfor %}
+          </select></label></p>
+          {% for f in (e.fields if e and e.fields else v.fields) %}
+            {% if f.kind == "scope" %}
+            <p><label>Scope <select name="param_scope">
+              {% for opt in f.options %}<option value="{{ opt }}" {% if f.value == opt %}selected{% endif %}>{{ opt }}</option>{% endfor %}
+              <option value="named" {% if f.value is not string %}selected{% endif %}>Named systems</option>
+            </select></label>
+            <label>Named systems (comma separated) <input name="param_scope_names" value="{{ f.value | join(', ') if f.value is not string else '' }}"></label></p>
+            {% elif f.kind == "checkbox" %}
+            <p><label><input type="checkbox" name="param_{{ f.name }}" value="true" {% if f.value %}checked{% endif %}> {{ f.name | replace("_", " ") }}</label></p>
+            {% elif f.kind == "number" %}
+            <p><label>{{ f.name | replace("_", " ") }} <input type="number" name="param_{{ f.name }}" value="{{ f.value if f.value is not none else '' }}"></label></p>
+            {% else %}
+            <p><label>{{ f.name | replace("_", " ") }} <input name="param_{{ f.name }}" value="{{ f.value or '' }}"></label></p>
+            {% endif %}
+          {% endfor %}
+          {% if e and e.description %}<p class="preview" role="status"><strong>Preview:</strong> {{ e.description }}</p>{% endif %}
+          <p>
+            <button type="submit" formaction="/orgs/{{ org_id }}/claims/{{ v.claim.id }}/preview">Preview</button>
+            <button type="submit">Save as a new unconfirmed revision</button>
+          </p>
+        </form>
+      </details>
+    {% else %}
+      <form method="post" action="/orgs/{{ org_id }}/claims/{{ v.claim.id }}/dismiss" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label>Reason <input name="reason"></label>
+        <button type="submit">Dismiss</button>
+      </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</article>
+{% endfor %}
+{% else %}
+<p class="empty">No claims yet.</p>
+{% endif %}
+<p><a href="/orgs/{{ org_id }}/passport">Back to the passport</a></p>
+{% endblock %}

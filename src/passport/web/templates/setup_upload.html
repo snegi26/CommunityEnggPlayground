@@ -1,0 +1,42 @@
+{% extends "setup_base.html" %}
+{% block step %}
+<h2>3. Upload policies and evidence</h2>
+<section aria-labelledby="policies-h">
+  <h3 id="policies-h">Policies</h3>
+  {% if documents %}
+  <ul>{% for r in documents %}<li>{{ r.document.title }} (version {{ r.version.version_number }}, {{ r.version.filename }}) &middot; <a href="/orgs/{{ org_id }}/versions/{{ r.version.id }}/claims">Review claims</a></li>{% endfor %}</ul>
+  {% else %}<p class="empty">No policy uploaded yet.</p>{% endif %}
+  {% if policy_error %}<p class="message error" role="alert">{{ policy_error }}</p>{% endif %}
+  {% if can_approve %}
+  <form method="post" action="/orgs/{{ org_id }}/setup/upload/policy" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <p><label>Policy file (Markdown, text, Word, or PDF) <input type="file" name="file" required></label></p>
+    <p><label>Title (new policy) <input name="title"></label></p>
+    {% if documents %}
+    <p><label>Or a new version of <select name="document_id"><option value="">(a new policy)</option>
+      {% for r in documents %}<option value="{{ r.document.id }}">{{ r.document.title }}</option>{% endfor %}</select></label></p>
+    {% endif %}
+    <p><label>Next review due <input type="date" name="review_due_on"></label></p>
+    <p><button type="submit">Upload policy</button></p>
+  </form>
+  {% endif %}
+</section>
+<section aria-labelledby="evidence-h">
+  <h3 id="evidence-h">Evidence</h3>
+  {% if evidence %}
+  <ul>{% for e in evidence %}<li>{{ e.title }} ({{ e.source }}, collected {{ e.collected_at.date() }})</li>{% endfor %}</ul>
+  {% else %}<p class="empty">No evidence uploaded yet.</p>{% endif %}
+  {% if evidence_error %}<p class="message error" role="alert">{{ evidence_error }}</p>{% endif %}
+  {% if can_approve %}
+  <form method="post" action="/orgs/{{ org_id }}/setup/upload/evidence" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <p><label>Evidence file <input type="file" name="file" required></label></p>
+    <p><label>Title <input name="title" required></label></p>
+    <p><label>Source (where it came from) <input name="source" required></label></p>
+    <p><label>Collected on <input type="date" name="collected_at" required></label></p>
+    <p><button type="submit">Upload evidence</button></p>
+  </form>
+  {% endif %}
+</section>
+<p><a href="/orgs/{{ org_id }}/setup/map">Next: map items to controls</a></p>
+{% endblock %}

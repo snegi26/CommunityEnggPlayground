@@ -1,0 +1,9 @@
+{% extends "setup_base.html" %}
+{% block step %}
+<h2>Review drafted claims</h2>
+<p>The agent drafts checkable claims from each uploaded policy. Nothing it drafts is trusted until an approver confirms it.</p>
+{% if documents %}
+<ul>{% for r in documents %}<li><a href="/orgs/{{ org_id }}/versions/{{ r.version.id }}/claims">{{ r.document.title }} (version {{ r.version.version_number }})</a></li>{% endfor %}</ul>
+{% else %}<p class="empty">No policy uploaded yet.</p>{% endif %}
+<p><a href="/orgs/{{ org_id }}/passport">Open the passport</a></p>
+{% endblock %}

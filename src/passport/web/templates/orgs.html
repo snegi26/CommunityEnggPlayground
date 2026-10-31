@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Your organizations{% endblock %}
+{% block content %}
+<h1>Your organizations</h1>
+{% if orgs %}
+<ul class="orgs">
+  {% for o in orgs %}
+  <li><a href="/orgs/{{ o.org_id }}/passport">{{ o.name }}</a> <span class="meta">({{ o.role.value }})</span>
+    &middot; <a href="/orgs/{{ o.org_id }}/setup">Setup</a></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty">You are not a member of any organization yet.</p>
+{% endif %}
+<h2>Add an organization</h2>
+<p>Consultants add one organization per client; nothing is shared between them.</p>
+<form method="post" action="/orgs/create">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <p><label for="name">Name</label><br><input id="name" name="name" required></p>
+  <p><button type="submit">Create and start setup</button></p>
+</form>
+{% endblock %}

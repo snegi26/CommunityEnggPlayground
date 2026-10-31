@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Passport: {{ org_name }}{% endblock %}
+{% block content %}
+<h1>{{ framework_label }} passport: {{ org_name }}</h1>
+<nav aria-label="Framework">
+  <ul class="tabs">
+    {% for value, label in frameworks %}
+    <li><a href="/orgs/{{ org_id }}/passport?framework={{ value }}" {% if value == framework %}aria-current="page"{% endif %}>{{ label }}</a></li>
+    {% endfor %}
+  </ul>
+</nav>
+{% include "run_status.html" %}
+{% if report %}<p><a href="/orgs/{{ org_id }}/reports/{{ report.id }}">Latest weekly report</a> ({{ report.created_at.strftime("%Y-%m-%d") }})</p>{% endif %}
+{% if rows %}
+<table class="passport">
+  <thead>
+    <tr>
+      <th scope="col">Item</th><th scope="col">Status</th><th scope="col">Trust</th>
+      <th scope="col">Last checked</th><th scope="col">Last approved by</th><th scope="col">Why</th>
+      {% if can_approve %}<th scope="col">Actions</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr class="item" data-item="{{ r.item_kind }}:{{ r.item_id }}">
+      <td>{% if r.review_link %}<a href="{{ r.review_link }}">{{ r.title }}</a>{% else %}{{ r.title }}{% endif %}
+        <span class="meta">({{ "Policy" if r.item_kind == "document" else "Evidence" }})</span></td>
+      <td><span class="badge status-{{ r.status }}">{{ status_label(r.status) }}</span></td>
+      <td>{{ "Trusted" if r.trusted else "Not trusted" }}</td>
+      <td class="last-checked">{{ r.last_checked.strftime("%Y-%m-%d %H:%M UTC") if r.last_checked else "Never" }}</td>
+      <td class="approver">{% if r.approved_by %}{{ r.approved_by }}{% if r.approved_on_behalf %} (on behalf of the organization){% endif %}, {{ r.approved_at.strftime("%Y-%m-%d") }}{% else %}unapproved{% endif %}</td>
+      <td>{% if r.causes %}<ul class="causes">{% for c in r.causes %}<li>{{ c }}</li>{% endfor %}</ul>{% endif %}</td>
+      {% if can_approve %}
+      <td>
+        <form method="post" action="/orgs/{{ org_id }}/items/{{ r.item_kind }}/{{ r.item_id }}/approve">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="framework" value="{{ framework }}">
+          <button type="submit">Approve as reviewed</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No items are mapped to {{ framework_label }} yet. <a href="/orgs/{{ org_id }}/setup">Continue setup</a>.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Set up two-factor authentication{% endblock %}
+{% block content %}
+<h1>Set up two-factor authentication</h1>
+<p>Owners and approvers must use an authenticator app to sign in.</p>
+{% if error %}<p class="message error" role="alert">{{ error }}</p>{% endif %}
+{% if recovery_codes %}
+  <p class="message success">Two-factor authentication is on.</p>
+  <h2>Recovery codes</h2>
+  <p>Save these now. Each works once if you lose your authenticator. They will not be shown again.</p>
+  <ul class="codes">{% for c in recovery_codes %}<li><code>{{ c }}</code></li>{% endfor %}</ul>
+  <p><a href="{{ next }}">Continue</a></p>
+{% elif provisioning_uri %}
+  <h2>1. Add Passport to your authenticator</h2>
+  <p>Enter this setup address in your authenticator app:</p>
+  <p><code class="uri">{{ provisioning_uri }}</code></p>
+  <h2>2. Confirm with a code</h2>
+  <form method="post" action="/mfa/enroll/confirm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="next" value="{{ next }}">
+    <p><label for="code">Current six-digit code</label><br><input id="code" name="code" inputmode="numeric" required></p>
+    <p><button type="submit">Turn on two-factor authentication</button></p>
+  </form>
+{% else %}
+  <form method="post" action="/mfa/enroll">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="next" value="{{ next }}">
+    <p><button type="submit">Start setup</button></p>
+  </form>
+{% endif %}
+{% endblock %}

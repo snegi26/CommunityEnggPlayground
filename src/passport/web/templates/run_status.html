@@ -1,0 +1,18 @@
+<div id="run-status" class="run-status"
+  {% if run.state in ("queued", "running") %}hx-get="/orgs/{{ org_id }}/checks/status" hx-trigger="every 5s" hx-swap="outerHTML"{% endif %}>
+  <p>Checks:
+  {% if run.state == "queued" %}<span class="badge run-queued">Queued</span> since {{ run.run.created_at.strftime("%Y-%m-%d %H:%M UTC") }}.
+  {% elif run.state == "running" %}<span class="badge run-running">Running</span>{% if run.run.started_at %}, started {{ run.run.started_at.strftime("%Y-%m-%d %H:%M UTC") }}{% endif %}.
+  {% elif run.state == "failed" %}<span class="badge run-failed">Failed</span>: {{ run.reason or "the run stopped without a reason" }}.
+  {% else %}<span class="badge run-idle">Idle</span>.
+  {% endif %}
+  {% if run.last_completed %}Last completed run: {{ run.last_completed.strftime("%Y-%m-%d %H:%M UTC") }}.{% else %}No run has completed yet.{% endif %}
+  </p>
+  {% if is_owner and run.state not in ("queued", "running") %}
+  <form method="post" action="/orgs/{{ org_id }}/checks/rerun">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="framework" value="{{ framework or 'soc2' }}">
+    <button type="submit">Re-run checks now</button>
+  </form>
+  {% endif %}
+</div>

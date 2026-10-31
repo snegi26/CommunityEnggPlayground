@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Invitation{% endblock %}
+{% block content %}
+<h1>Join an organization</h1>
+{% if error %}<p class="message error" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/invitations/{{ token }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <p>Accept this invitation as {{ user.email }}?</p>
+  <p><button type="submit">Accept invitation</button></p>
+</form>
+{% endblock %}

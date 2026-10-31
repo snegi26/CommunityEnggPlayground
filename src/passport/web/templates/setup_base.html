@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Setup{% endblock %}
+{% block content %}
+<h1>Set up {{ org_name }}</h1>
+<nav aria-label="Setup steps">
+  <ol class="steps">
+    {% for key, label in steps %}
+    <li class="{{ 'current' if key == step else '' }}">
+      <a href="/orgs/{{ org_id }}/setup/{{ key }}" {% if key == step %}aria-current="step"{% endif %}>{{ label }}</a>
+      <span class="badge {{ 'done' if done[key] else 'todo' }}">{{ "Done" if done[key] else "To do" }}</span>
+    </li>
+    {% endfor %}
+    <li class="{{ 'current' if step == 'done' else '' }}"><a href="/orgs/{{ org_id }}/setup/done">Review claims and see the passport</a></li>
+  </ol>
+</nav>
+{% block step %}{% endblock %}
+{% endblock %}

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Freshness Passport{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  {# Pinned HTMX from unpkg (no network to vendor a copy at build time). Pages work without it. #}
+  <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
+</head>
+<body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+<header class="site">
+  <a class="brand" href="/">Freshness Passport</a>
+  {% if org_id %}
+  <nav aria-label="Organization">
+    <a href="/orgs/{{ org_id }}/passport">Passport</a>
+    <a href="/orgs/{{ org_id }}/setup">Setup</a>
+  </nav>
+  {% if orgs and orgs | length > 1 %}
+  <form class="switcher" method="get" action="/switch">
+    <label for="org-switch">Organization</label>
+    <select id="org-switch" name="org_id">
+      {% for o in orgs %}
+      <option value="{{ o.org_id }}" {% if o.org_id == org_id %}selected{% endif %}>{{ o.name }} ({{ o.role.value }})</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Switch</button>
+  </form>
+  {% elif org_name %}
+  <span class="org-name">{{ org_name }}</span>
+  {% endif %}
+  {% endif %}
+  {% if user %}
+  <form class="logout" method="post" action="/logout">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <span>{{ user.name }}{% if role %} ({{ role }}){% endif %}</span>
+    <button type="submit">Sign out</button>
+  </form>
+  {% endif %}
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

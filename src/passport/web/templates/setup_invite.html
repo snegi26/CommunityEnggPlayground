@@ -1,0 +1,28 @@
+{% extends "setup_base.html" %}
+{% block step %}
+<h2>5. Invite the approver</h2>
+<p>The approver confirms drafted claims and approves documents with their own login. A consultant's membership is external: approvals they make are recorded as on behalf of the organization.</p>
+{% if invite_error %}<p class="message error" role="alert">{{ invite_error }}</p>{% endif %}
+{% if invite_link %}
+<div class="message success" role="status">
+  <p>Invitation created for {{ invited }}. Send them this link (shown once):</p>
+  <p><code>{{ invite_link }}</code></p>
+</div>
+{% endif %}
+<h3>Members</h3>
+<ul>{% for m, u in members %}<li>{{ u.name }} ({{ u.email }}): {{ m.role.value }}{% if m.external %}, external{% endif %}</li>{% endfor %}</ul>
+{% if invitations %}
+<h3>Pending invitations</h3>
+<ul>{% for i in invitations %}<li>{{ i.email }}: {{ i.role.value }}{% if i.external %}, external{% endif %} (expires {{ i.expires_at.date() }})</li>{% endfor %}</ul>
+{% endif %}
+{% if is_owner %}
+<form method="post" action="/orgs/{{ org_id }}/setup/invite">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <p><label>Email <input type="email" name="email" required></label></p>
+  <p><label>Role <select name="role">{% for r in roles %}<option value="{{ r }}" {% if r == 'approver' %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></label></p>
+  <p><label><input type="checkbox" name="external" value="true"> External (a consultant acting for this organization)</label></p>
+  <p><button type="submit">Create invitation</button></p>
+</form>
+{% endif %}
+<p><a href="/orgs/{{ org_id }}/setup/done">Next: review drafted claims</a></p>
+{% endblock %}
