@@ -1,4 +1,4 @@
-"""Core domain tables and the append-only event log (U3).
+"""Core domain tables and the append-only event log.
 
 Revision ID: 0003
 Revises: 0002

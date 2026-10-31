@@ -1,4 +1,4 @@
-"""Upload policies and evidence, keep document versions, and store parsed spans (U5).
+"""Upload policies and evidence, keep document versions, and store parsed spans.
 
 Callers set the org context (``set_org_context``) on the session first; row-level security
 then confines every read and write here to that org. All uploads are human-only and append
@@ -10,8 +10,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import PurePath
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import exists, select
+from sqlalchemy.orm import Session, aliased
 
 from passport.db.models import Document, DocumentVersion, EvidenceItem
 from passport.documents.models import DocumentSpan
@@ -199,7 +199,16 @@ def spans_for_version(session: Session, version_id: uuid.UUID) -> list[DocumentS
 
 def spans_to_draft(session: Session, version_id: uuid.UUID) -> list[DocumentSpan]:
     """Spans that are new or changed in this version: the only ones drafting sees (KTD14)."""
-    return [s for s in spans_for_version(session, version_id) if s.change_kind != "unchanged"]
+    return list(
+        session.scalars(
+            select(DocumentSpan)
+            .where(
+                DocumentSpan.document_version_id == version_id,
+                DocumentSpan.change_kind != "unchanged",
+            )
+            .order_by(DocumentSpan.paragraph_index)
+        )
+    )
 
 
 def removed_spans(session: Session, version_id: uuid.UUID) -> list[DocumentSpan]:
@@ -208,8 +217,18 @@ def removed_spans(session: Session, version_id: uuid.UUID) -> list[DocumentSpan]
     if version is None or version.version_number == 1:
         return []
     previous = get_version(session, version.document_id, version.version_number - 1)
-    carried = {s.previous_id for s in spans_for_version(session, version_id)}
-    return [s for s in spans_for_version(session, previous.id) if s.id not in carried]
+    successor = aliased(DocumentSpan)
+    carried = exists().where(
+        successor.document_version_id == version_id,
+        successor.previous_id == DocumentSpan.id,
+    )
+    return list(
+        session.scalars(
+            select(DocumentSpan)
+            .where(DocumentSpan.document_version_id == previous.id, ~carried)
+            .order_by(DocumentSpan.paragraph_index)
+        )
+    )
 
 
 def upload_evidence(

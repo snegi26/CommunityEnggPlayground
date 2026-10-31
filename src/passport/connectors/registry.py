@@ -77,11 +77,8 @@ class ConnectorRegistry:
             raise RegistryError(f"no connector registered for {kind}") from None
 
 
-# Live connectors (U7) register themselves here.
+# Live connectors register themselves here.
 registry = ConnectorRegistry()
-
-
-# --- Connection lifecycle ------------------------------------------------------------
 
 
 def create_connection(
@@ -131,7 +128,7 @@ def disconnect_connection(session: Session, *, actor: Actor, connection: Connect
     """Disconnect: delete the stored secret, mark the connection, and record an event.
 
     Returns False, writing nothing, when the connection is already disconnected.
-    Claims that depended on it then have no serving connection (not checkable, U12).
+    Claims that depended on it then have no serving connection (not checkable).
     """
     human = require_human(actor)
     if connection.status == ConnectionStatus.DISCONNECTED.value:

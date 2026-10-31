@@ -1,4 +1,4 @@
-"""Control catalogs and item-to-control mappings (U4, R4).
+"""Control catalogs and item-to-control mappings (R4).
 
 Catalog files ship identifiers and short titles only. The migration loads them into
 the global ``controls`` table; mappings are org-scoped and every change is an event.

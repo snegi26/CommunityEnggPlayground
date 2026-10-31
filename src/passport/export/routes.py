@@ -1,4 +1,4 @@
-"""``GET /orgs/{org_id}/export``: download the auditor export ZIP (owner-only, U15)."""
+"""``GET /orgs/{org_id}/export``: download the auditor export ZIP (owner-only)."""
 
 from fastapi import APIRouter, Response
 

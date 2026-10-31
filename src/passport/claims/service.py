@@ -1,4 +1,4 @@
-"""Confirm, edit, reject, and dismiss drafted claims (U10, R7, R21, KTD5, KTD10).
+"""Confirm, edit, reject, and dismiss drafted claims (R7, R21, KTD5, KTD10).
 
 Every operation here is human-only and allowed to owners and approvers; a viewer gets
 ``ForbiddenError`` and the agent gets ``AgentNotPermittedError``, both before anything is
@@ -18,7 +18,7 @@ filter by org explicitly (KTD5).
 """
 
 import uuid
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -51,9 +51,6 @@ class ClaimActionError(ValueError):
 
 class NeedsAcknowledgementError(ClaimActionError):
     """A needs-review claim is confirmed only after its failed-support reason is acknowledged."""
-
-
-# --- Who is acting ---------------------------------------------------------------
 
 
 class MemberContext(Protocol):
@@ -104,9 +101,6 @@ def acting_fields(acting: ActingMember, human: Human) -> dict[str, Any]:
     }
 
 
-# --- Check preview (pure) --------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class CheckPreview:
     """What an approver sees before saving an edit: the check in plain language (R7)."""
@@ -136,9 +130,6 @@ def preview_check(
     )
 
 
-# --- Queries ---------------------------------------------------------------------
-
-
 def _not_superseded() -> Any:
     successor = aliased(Claim)
     return ~exists().where(successor.revision_of == Claim.id)
@@ -164,8 +155,34 @@ def current_claims(session: Session, org_id: uuid.UUID, version_id: uuid.UUID) -
     )
 
 
+def current_claims_for_versions(
+    session: Session, org_id: uuid.UUID, version_ids: Iterable[uuid.UUID]
+) -> dict[uuid.UUID, list[Claim]]:
+    """:func:`current_claims` for many versions in one query, keyed by version id.
+
+    Every requested version gets an entry (empty when it has no claims), each list in
+    the same order :func:`current_claims` returns.
+    """
+    wanted = list(dict.fromkeys(version_ids))
+    grouped: dict[uuid.UUID, list[Claim]] = {version_id: [] for version_id in wanted}
+    if not wanted:
+        return grouped
+    successor = aliased(Claim)
+    in_version = exists().where(
+        successor.revision_of == Claim.id,
+        successor.document_version_id == Claim.document_version_id,
+    )
+    for claim in session.scalars(
+        select(Claim)
+        .where(Claim.org_id == org_id, Claim.document_version_id.in_(wanted), ~in_version)
+        .order_by(Claim.created_at, Claim.id)
+    ):
+        grouped[claim.document_version_id].append(claim)
+    return grouped
+
+
 def checkable_claims(session: Session, org_id: uuid.UUID) -> list[Claim]:
-    """Claims a check run evaluates (U11, U12).
+    """Claims a check run evaluates.
 
     Only claims on each document's latest version, latest revisions only, with a
     predicate, and not rejected or dismissed. Confirmed, unconfirmed, and needs-review
@@ -198,9 +215,6 @@ def checkable_claims(session: Session, org_id: uuid.UUID) -> list[Claim]:
             .order_by(Claim.created_at, Claim.id)
         )
     )
-
-
-# --- Mutations -------------------------------------------------------------------
 
 
 def _load_for_update(session: Session, org_id: uuid.UUID, claim_id: uuid.UUID) -> Claim:

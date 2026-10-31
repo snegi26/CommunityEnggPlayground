@@ -1,4 +1,4 @@
-"""Build the auditor export for one org and framework (U15, R13, R14, KTD8, KTD13).
+"""Build the auditor export for one org and framework (R13, R14, KTD8, KTD13).
 
 The export is a ZIP of four files:
 
@@ -45,7 +45,7 @@ from sqlalchemy.orm import Session
 
 from passport.auth.models import User
 from passport.checks.models import CheckOutcome
-from passport.claims.service import CHECKED_STATES, checkable_claims, current_claims
+from passport.claims.service import CHECKED_STATES, checkable_claims, current_claims_for_versions
 from passport.controls.models import ControlMapping, Framework, ItemKind, OrgFrameworkSettings
 from passport.db.base import utcnow
 from passport.db.models import (
@@ -207,13 +207,11 @@ def _latest_checks(
     }
 
 
-def _version_claims(
-    session: Session, org_id: uuid.UUID, version_id: uuid.UUID, checked_ids: set[uuid.UUID]
-) -> list[Claim]:
+def _version_claims(current: list[Claim], checked_ids: set[uuid.UUID]) -> list[Claim]:
     """The claims the status service counts for a version: checkable plus open unbound."""
     return [
         c
-        for c in current_claims(session, org_id, version_id)
+        for c in current
         if c.id in checked_ids or (c.predicate_id is None and c.state in CHECKED_STATES)
     ]
 
@@ -281,12 +279,17 @@ def _items(
     controls = _controls(session, org_id, framework)
     checked_ids = {c.id for c in checkable_claims(session, org_id)}
 
+    document_rows = [
+        row
+        for row in statuses
+        if row.item_kind == ItemKind.DOCUMENT.value and row.item_id in versions
+    ]
+    current = current_claims_for_versions(
+        session, org_id, (versions[row.item_id].id for row in document_rows)
+    )
     claims_by_doc: dict[uuid.UUID, list[Claim]] = {}
-    for row in statuses:
-        if row.item_kind == ItemKind.DOCUMENT.value and row.item_id in versions:
-            claims_by_doc[row.item_id] = _version_claims(
-                session, org_id, versions[row.item_id].id, checked_ids
-            )
+    for row in document_rows:
+        claims_by_doc[row.item_id] = _version_claims(current[versions[row.item_id].id], checked_ids)
     checks = _latest_checks(
         session, org_id, [c.id for claims in claims_by_doc.values() for c in claims]
     )

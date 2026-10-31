@@ -1,4 +1,4 @@
-"""Login, MFA verification and enrollment, the org switcher, and invitation pages (U14).
+"""Login, MFA verification and enrollment, the org switcher, and invitation pages.
 
 These call the same services as the JSON endpoints in ``passport.auth.routes``.
 """
@@ -156,9 +156,6 @@ def logout(request: Request, db: DbSession) -> Response:
     return response
 
 
-# --- org switcher ----------------------------------------------------------------------
-
-
 @router.get("/")
 def org_switcher(request: Request, db: DbSession, signed_in: WebSignedIn) -> Response:
     orgs = tenancy.orgs_for_user(db, user_id=signed_in.user.id)
@@ -179,9 +176,6 @@ def create_org(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "name_required")
     org = tenancy.create_org(db, name=name, owner=signed_in.user)
     return see_other(f"/orgs/{org.id}/setup")
-
-
-# --- invitations -----------------------------------------------------------------------
 
 
 @router.get("/invitations/{token}")

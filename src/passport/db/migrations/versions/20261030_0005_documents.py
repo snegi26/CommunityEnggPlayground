@@ -1,4 +1,4 @@
-"""Parsed document spans with their version diff marks (U5).
+"""Parsed document spans with their version diff marks.
 
 Revision ID: 0005
 Revises: 0003

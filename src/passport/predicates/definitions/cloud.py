@@ -42,9 +42,6 @@ class AccountParams(PredicateParams):
     """Parameters for an AWS predicate with no setting beyond its scope."""
 
 
-# --- root_mfa_enabled ------------------------------------------------------------
-
-
 def _root_mfa_enabled(observed: Observed, params: AccountParams) -> Outcome:
     return rows_where(observed, is_true("root_mfa"), field_label("account"))
 
@@ -62,9 +59,6 @@ ROOT_MFA_ENABLED = Predicate(
     ),
     evaluate=_root_mfa_enabled,
 )
-
-
-# --- password_min_length ---------------------------------------------------------
 
 
 class PasswordMinLengthParams(PredicateParams):
@@ -92,9 +86,6 @@ PASSWORD_MIN_LENGTH = Predicate(
     ),
     evaluate=_password_min_length,
 )
-
-
-# --- cloudtrail_enabled ----------------------------------------------------------
 
 
 class CloudTrailParams(PredicateParams):
@@ -133,9 +124,6 @@ CLOUDTRAIL_ENABLED = Predicate(
 )
 
 
-# --- s3_encryption_enabled -------------------------------------------------------
-
-
 def _s3_encryption_enabled(observed: Observed, params: AccountParams) -> Outcome:
     return rows_where(observed, is_true("encrypted"), field_label("bucket"))
 
@@ -155,8 +143,6 @@ S3_ENCRYPTION_ENABLED = Predicate(
     evaluate=_s3_encryption_enabled,
 )
 
-
-# --- s3_public_access_blocked ----------------------------------------------------
 
 PUBLIC_ACCESS_SETTINGS = (
     "block_public_acls",

@@ -26,7 +26,12 @@ import jwt
 
 from passport.connectors.base import Capability, Connector
 from passport.connectors.models import ConnectionKind
-from passport.connectors.observation import CollectionResult, Failure, FailureKind, Observed
+from passport.connectors.observation import (
+    CollectionResult,
+    ConnectorReadError,
+    FailureKind,
+    Observed,
+)
 from passport.connectors.registry import registry
 from passport.db.base import utcnow
 
@@ -56,13 +61,8 @@ def app_jwt(credentials: GitHubAppCredentials, now: datetime) -> str:
     return jwt.encode(payload, credentials.private_key, algorithm="RS256")
 
 
-class GitHubError(Exception):
+class GitHubError(ConnectorReadError):
     """A GitHub call failed in a way the caller must handle (setup) or report (reads)."""
-
-    def __init__(self, kind: FailureKind, detail: str) -> None:
-        super().__init__(detail)
-        self.kind = kind
-        self.detail = detail
 
 
 def _check(response: httpx.Response, what: str) -> None:
@@ -203,25 +203,6 @@ class GitHubConnector(Connector):
             scope=self.scope,
             total_count=result.total,
             pagination_complete=True,
-        )
-
-    def _failure(
-        self,
-        capability: Capability,
-        endpoint: str,
-        parameters: dict[str, Any],
-        kind: FailureKind,
-        detail: str,
-    ) -> Failure:
-        return Failure(
-            capability=capability,
-            kind=kind,
-            detail=detail,
-            endpoint=endpoint,
-            parameters=parameters,
-            collector_version=self.collector_version,
-            collected_at=self._clock(),
-            scope=self.scope,
         )
 
     def _org_path(self) -> str:

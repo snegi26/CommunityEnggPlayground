@@ -1,4 +1,4 @@
-"""Weekly reports (U13).
+"""Weekly reports.
 
 Revision ID: 0012
 Revises: 0011

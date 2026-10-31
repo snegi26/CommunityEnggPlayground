@@ -1,4 +1,4 @@
-"""The weekly report's email summary (U13, KTD12).
+"""The weekly report's email summary (KTD12).
 
 Sent to the org's owners only. The body carries counts, item titles, and a link to the
 in-product report, and nothing else: no causes, so no account names, offenders, account

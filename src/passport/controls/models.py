@@ -1,4 +1,4 @@
-"""Control catalog reference rows and org-scoped mappings, settings, and scope (U4).
+"""Control catalog reference rows and org-scoped mappings, settings, and scope.
 
 ``controls`` is global reference data loaded by migration and read-only to the app
 role. Every other table here carries ``org_id`` and is RLS-isolated (KTD5).

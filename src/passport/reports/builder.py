@@ -1,4 +1,4 @@
-"""Build the weekly report from a check run's statuses and coverage (U13, R11, R12).
+"""Build the weekly report from a check run's statuses and coverage (R11, R12).
 
 The diff baseline is the snapshot stored on the org's last *sent* report, never the
 last run: a week whose report was not sent (a mail failure, a missed run) folds into
@@ -34,11 +34,10 @@ from passport.db.models import CheckRun, Document, EvidenceItem, ItemStatus
 from passport.provenance.actor import Agent
 from passport.provenance.service import append_event
 from passport.reports.models import WeeklyReport
-from passport.status.engine import SEVERITY, Status
+from passport.status.engine import SEVERITY_RANK, Status
 
 REPORT_VERSION = "weekly-report/1"
 CURRENT = Status.CURRENT.value
-_RANK = {status.value: rank for rank, status in enumerate(SEVERITY)}
 
 STATUS_LABELS: Mapping[str, str] = {
     "contradicted": "Contradicted",
@@ -104,7 +103,7 @@ def _ordered(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(
         entries,
         key=lambda e: (
-            _RANK.get(e["status"], len(_RANK)),
+            SEVERITY_RANK.get(e["status"], len(SEVERITY_RANK)),
             e["title"],
             e["item_kind"],
             e["item_id"],
@@ -169,9 +168,6 @@ def render_report_html(
         coverage=coverage,
         generated_at=generated_at,
     )
-
-
-# --- Persisted reports ---------------------------------------------------------------
 
 
 def _titles(session: Session, org_id: uuid.UUID) -> dict[tuple[str, uuid.UUID], str]:

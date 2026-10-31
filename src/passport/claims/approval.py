@@ -1,4 +1,4 @@
-"""Document approval: a person marks a policy version or evidence item reviewed (U10).
+"""Document approval: a person marks a policy version or evidence item reviewed.
 
 Human-only and limited to owners and approvers (KTD5, KTD10). It records the approver,
 whether they acted on behalf of the org (R21), when, and the next review date: today plus
@@ -7,12 +7,13 @@ review date (R9) forward.
 
 Cadence: policy versions use the framework's policy-review cadence. Evidence uses the
 access-review cadence, the only recurring evidence review R19 defines; an evidence item's
-age against the audit window is the status engine's separate check (U12).
+age against the audit window is the status engine's separate check.
 
 Framework: the caller may name one. Otherwise the frameworks the item is mapped to are
 used and, when there are several, the shortest cadence wins so no framework's review lapses
 before the stored date. An unmapped item uses the org's first configured framework (the
-rule U12 applies to unmapped items); with no settings stored yet, R19's defaults apply.
+rule the status engine applies to unmapped items); with no settings stored yet, R19's
+defaults apply.
 """
 
 import uuid

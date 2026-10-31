@@ -4,7 +4,7 @@ A read either yields an :class:`Observed` carrying the endpoint, parameters, row
 total counts, a completeness flag, a SHA-256 of the canonical raw response, the
 collector version, the UTC collection time, and the scope identifiers it covered; or
 a typed :class:`Failure`. An empty or incomplete observation is never checkable:
-the status engine (U12) maps it to not checkable, never to compliant.
+the status engine maps it to not checkable, never to compliant.
 """
 
 import enum
@@ -29,6 +29,15 @@ class FailureKind(enum.StrEnum):
     TIMEOUT = "timeout"
     # Pagination broke off (for example an expired cursor): no usable rows at all.
     INCOMPLETE_PAGINATION = "incomplete_pagination"
+
+
+class ConnectorReadError(Exception):
+    """A provider read failed with a typed :class:`FailureKind`."""
+
+    def __init__(self, kind: FailureKind, detail: str) -> None:
+        super().__init__(detail)
+        self.kind = kind
+        self.detail = detail
 
 
 def _as_utc(value: datetime) -> datetime:

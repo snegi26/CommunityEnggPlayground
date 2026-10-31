@@ -1,6 +1,6 @@
 """F3 version matching: carry claims of unchanged spans to a new policy version (R20, KTD14).
 
-Matching is deterministic and runs at upload, before drafting: U5's span diff has already
+Matching is deterministic and runs at upload, before drafting: the upload's span diff has already
 marked each new span unchanged, changed, or new against the previous version. Every
 current claim of a span marked unchanged is copied to the new version with its state and
 confirmation intact (``revision_of`` links the copy to its source) and a

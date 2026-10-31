@@ -117,8 +117,7 @@ class ResetCompletion(BaseModel):
 
 @router.post("/auth/password-reset", status_code=status.HTTP_202_ACCEPTED)
 def password_reset(body: ResetRequest, db: DbSession) -> dict[str, bool]:
-    # Delivery of the token by email is wired with report email (U13); the response never
-    # reveals whether the account exists.
+    # The response never reveals whether the account exists.
     service.request_password_reset(db, email=body.email)
     return {"ok": True}
 

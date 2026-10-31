@@ -1,8 +1,8 @@
-"""Per-claim outcomes of a check run (U11, KTD11).
+"""Per-claim outcomes of a check run (KTD11).
 
 One row per claim per run. A retried run skips claims that already have a row, so
 re-running a half-finished run never reads or records their observations twice.
-``detail`` holds the facts the status engine (U12) renders from: each connected
+``detail`` holds the facts the status engine renders from: each connected
 system's result, the predicate evaluation over the checkable observations, and any
 reason the claim could not be checked. Rows from observations are not kept here, so
 the evaluation is made once, at check time, and stored.

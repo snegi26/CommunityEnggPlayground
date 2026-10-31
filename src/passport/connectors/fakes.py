@@ -1,4 +1,4 @@
-"""Scriptable fake connectors for tests (U6).
+"""Scriptable fake connectors for tests.
 
 A :class:`FakeConnector` stands in for any connection kind. Each test scripts the
 system state per capability (rows, a partial page set, or a typed failure), and can

@@ -56,15 +56,13 @@ class Status(enum.StrEnum):
 
 # R17: most severe first.
 SEVERITY: tuple[Status, ...] = tuple(Status)
-_RANK = {status: rank for rank, status in enumerate(SEVERITY)}
+SEVERITY_RANK: Mapping[str, int] = {status.value: rank for rank, status in enumerate(SEVERITY)}
 
 
 def worst(statuses: Iterable[Status]) -> Status | None:
-    ranked = sorted(statuses, key=_RANK.__getitem__)
+    ranked = sorted(statuses, key=SEVERITY_RANK.__getitem__)
     return ranked[0] if ranked else None
 
-
-# --- Check facts (written by the check runner, U11) ---------------------------------
 
 OBSERVED = "observed"
 ERROR = "error"
@@ -216,9 +214,6 @@ class ClaimCheck:
         )
 
 
-# --- Claim results ------------------------------------------------------------------
-
-
 class Reason(enum.StrEnum):
     PASSED = "passed"
     CONTRADICTED = "contradicted"
@@ -278,9 +273,6 @@ def claim_result(
         Reason.PASSED,
         partially_checked=evaluation.partial_cause is not None or skipped,
     )
-
-
-# --- Items --------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -568,7 +560,7 @@ def evaluate_framework(
 
     ordered = sorted(
         (cause for _, cause in entries if cause is not None),
-        key=lambda c: _RANK[c.status] if c.status else len(SEVERITY),
+        key=lambda c: SEVERITY_RANK[c.status] if c.status else len(SEVERITY),
     )
     if status is Status.CURRENT and passed:
         labels = [_label(s) for s in _unique_systems(passed_systems)]

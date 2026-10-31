@@ -1,10 +1,10 @@
-"""The closed, versioned predicate registry (U8, KTD3).
+"""The closed, versioned predicate registry (KTD3).
 
 A predicate is one checkable claim type: an id and version, a pydantic parameter
 schema, the connector capability it needs, a comparison that turns an observation
 into pass or fail with named offenders, a scope rule for R18, and a plain-language
 description shown to approvers (R7). A policy sentence that maps to no predicate
-yields a not-checkable claim; that decision belongs to drafting (U9), not here.
+yields a not-checkable claim; that decision belongs to drafting, not here.
 
 Predicates in v1 (each one the existing connector capabilities can serve):
 
@@ -32,7 +32,7 @@ Code (``definitions/code.py``, GitHub)
 Every predicate takes a ``scope`` parameter: one of its scope rule's keywords (for
 example ``all_users``, ``all_production_accounts``, ``all_orgs``) or a non-empty list
 of named identifiers. The rule resolves the scope against the org scope inventory
-(U4) and compares it with the identifiers the observations covered: inventory
+and compares it with the identifiers the observations covered: inventory
 entries the observations did not cover are named as unchecked scope, and a claim
 scope that matches no inventory entry is flagged with the cause "scope not declared".
 
@@ -41,7 +41,7 @@ never replaces an old one, so a later change cannot silently alter confirmed cla
 
 Callers must pass only observations whose ``checkable`` property is true. Deciding
 that an empty or incomplete observation is not checkable is the status engine's job
-(U12, KTD7); a predicate evaluates whatever rows it is given, so an empty row set
+(KTD7); a predicate evaluates whatever rows it is given, so an empty row set
 would pass vacuously.
 """
 
@@ -86,9 +86,6 @@ class ObservationMismatchError(PredicateError, ValueError):
     """The observation was read by a capability other than the predicate's."""
 
 
-# --- Parameters ------------------------------------------------------------------
-
-
 class PredicateParams(BaseModel):
     """Base parameter schema; every predicate's parameters carry a scope."""
 
@@ -96,9 +93,6 @@ class PredicateParams(BaseModel):
 
     # A scope keyword of the predicate's rule, or named identifiers.
     scope: str | list[str] = Field(min_length=1)
-
-
-# --- Scope (R18) -----------------------------------------------------------------
 
 
 class ScopeLike(Protocol):
@@ -211,9 +205,6 @@ class ScopeRule:
             unchecked=tuple(i for i in declared if i not in covered),
             undeclared=undeclared,
         )
-
-
-# --- Predicates ------------------------------------------------------------------
 
 
 @dataclass(frozen=True)

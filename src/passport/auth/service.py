@@ -62,9 +62,6 @@ def register_user(session: Session, *, email: str, name: str, password: str) -> 
     return user
 
 
-# --- login ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class LoginResult:
     session_token: str
@@ -151,9 +148,6 @@ def logout(session: Session, token: str) -> None:
         session.flush()
 
 
-# --- MFA -----------------------------------------------------------------------------
-
-
 def _check_second_factor(session: Session, user: User, code: str) -> bool:
     """Accept a current TOTP code or an unused recovery code (consuming it)."""
     if user.totp_secret and pyotp.TOTP(user.totp_secret).verify(code, valid_window=1):
@@ -237,9 +231,6 @@ def reset_member_mfa(session: Session, *, actor: Actor, org_id: uuid.UUID, targe
         subject_kind="user",
         subject_id=target.id,
     )
-
-
-# --- password reset ------------------------------------------------------------------
 
 
 def request_password_reset(session: Session, *, email: str) -> str | None:

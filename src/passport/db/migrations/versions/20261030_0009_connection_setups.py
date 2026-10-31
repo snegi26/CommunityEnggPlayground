@@ -1,4 +1,4 @@
-"""Pending connector setups, and one active org per GitHub App installation (U7).
+"""Pending connector setups, and one active org per GitHub App installation.
 
 ``connection_setups`` holds the server-side state of a setup in progress: the
 GitHub/Google OAuth ``state`` (hashed) bound to the browser session and org, and

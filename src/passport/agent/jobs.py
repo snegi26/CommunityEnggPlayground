@@ -1,4 +1,4 @@
-"""The drafting job (U9). Deferred after a policy version is uploaded and committed.
+"""The drafting job. Deferred after a policy version is uploaded and committed.
 
 ``passport.jobs.app`` must list ``"passport.agent.jobs"`` in its ``import_paths`` so the
 worker registers this task.

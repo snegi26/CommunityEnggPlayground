@@ -1,4 +1,4 @@
-"""Agent run records for claim drafting (U9).
+"""Agent run records for claim drafting.
 
 Revision ID: 0008
 Revises: 0007

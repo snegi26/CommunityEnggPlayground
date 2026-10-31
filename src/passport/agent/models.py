@@ -1,4 +1,4 @@
-"""Agent run records (U9). One row per drafting run over a document version."""
+"""Agent run records. One row per drafting run over a document version."""
 
 import enum
 import uuid

@@ -1,4 +1,4 @@
-"""The check runner: evaluate an org's claims against its connected systems (U11).
+"""The check runner: evaluate an org's claims against its connected systems.
 
 No model runs here (KTD2). A run loads the claims a check covers
 (``checkable_claims``), groups them by the connector capability their predicate needs,
@@ -11,8 +11,8 @@ never a finding (KTD11); an empty or incomplete read is not checkable (KTD7).
 Idempotency: a run commits after each capability group, so a run interrupted part way
 keeps the groups it finished. Executing the same run again skips claims that already
 have an outcome and reads only what is left. A run past its deadline finishes with the
-remaining claims marked check failed. After the claims, statuses are recomputed (U12);
-the weekly report (U13) is built from the run and the statuses.
+remaining claims marked check failed. After the claims, statuses are recomputed;
+the weekly report is built from the run and the statuses.
 
 Actor: every event a run writes names the freshness agent (A4) as an ``Agent`` whose
 ``run_id`` is the check run and whose ``model_id`` is ``"none"``: deterministic code
@@ -84,9 +84,6 @@ class RunNotFoundError(LookupError):
     pass
 
 
-# --- Requesting runs -----------------------------------------------------------------
-
-
 def _lock_org_runs(session: Session, org_id: uuid.UUID) -> None:
     """Serialize run requests per org for the rest of the transaction."""
     session.execute(
@@ -153,9 +150,6 @@ def request_rerun(session: Session, acting: ActingMember) -> tuple[CheckRun, boo
     if acting.role is not Role.OWNER:
         raise ForbiddenError(f"a {acting.role.value} may not re-run checks; owners only")
     return request_run(session, acting.org_id, trigger=ON_DEMAND, actor=human)
-
-
-# --- Coverage --------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -247,9 +241,6 @@ def run_coverage(session: Session, org_id: uuid.UUID, run_id: uuid.UUID) -> Cove
         systems=tuple(systems),
         **counts,
     )
-
-
-# --- Executing a run -----------------------------------------------------------------
 
 
 @dataclass(frozen=True)

@@ -1,4 +1,4 @@
-"""Recompute and persist an org's item statuses (U12, KTD8, KTD9).
+"""Recompute and persist an org's item statuses (KTD8, KTD9).
 
 Loads every document (its latest version) and evidence item with the inputs the pure
 engine needs: the claims on the latest version, each claim's latest check facts and
@@ -26,7 +26,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from passport.checks.models import CheckOutcome
-from passport.claims.service import CHECKED_STATES, checkable_claims, current_claims
+from passport.claims.service import CHECKED_STATES, checkable_claims, current_claims_for_versions
 from passport.connectors.models import Connection, ConnectionKind, ConnectionStatus
 from passport.connectors.registry import kinds_serving
 from passport.controls.models import ControlMapping, Framework, ItemKind, OrgFrameworkSettings
@@ -126,12 +126,11 @@ def _document_inputs(
     checked_by_version: dict[uuid.UUID, list[Claim]] = {}
     for claim in checked:
         checked_by_version.setdefault(claim.document_version_id, []).append(claim)
+    current = current_claims_for_versions(session, org_id, (v.id for _, v in versions))
     claims_by_version: dict[uuid.UUID, list[Claim]] = {}
     for _, version in versions:
         unbound = [
-            c
-            for c in current_claims(session, org_id, version.id)
-            if c.predicate_id is None and c.state in CHECKED_STATES
+            c for c in current[version.id] if c.predicate_id is None and c.state in CHECKED_STATES
         ]
         ordered = sorted(
             [*checked_by_version.get(version.id, []), *unbound],
@@ -280,7 +279,6 @@ def recompute_statuses(
         row.computed_at = now
         if before == after:
             continue
-        session.flush()
         append_event(
             session,
             org_id=org_id,
@@ -302,7 +300,6 @@ def recompute_statuses(
     for (kind, item_id, framework), row in existing.items():
         before = _snapshot(row)
         session.delete(row)
-        session.flush()
         append_event(
             session,
             org_id=org_id,

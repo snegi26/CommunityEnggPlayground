@@ -27,7 +27,12 @@ from botocore.exceptions import (
 
 from passport.connectors.base import Capability, Connector
 from passport.connectors.models import ConnectionKind
-from passport.connectors.observation import CollectionResult, Failure, FailureKind, Observed
+from passport.connectors.observation import (
+    CollectionResult,
+    ConnectorReadError,
+    FailureKind,
+    Observed,
+)
 from passport.connectors.registry import registry
 from passport.db.base import utcnow
 
@@ -109,11 +114,8 @@ def error_code(exc: ClientError) -> str:
     return str(exc.response.get("Error", {}).get("Code", ""))
 
 
-class _ReadFailedError(Exception):
-    def __init__(self, kind: FailureKind, detail: str) -> None:
-        super().__init__(detail)
-        self.kind = kind
-        self.detail = detail
+class _ReadFailedError(ConnectorReadError):
+    pass
 
 
 class AwsConnector(Connector):
@@ -139,8 +141,6 @@ class AwsConnector(Connector):
         self._sleep = sleep
         self._report_attempts = report_attempts
         self._report_interval = report_interval_seconds
-
-    # --- plumbing ------------------------------------------------------------------
 
     def _run(
         self,
@@ -178,29 +178,8 @@ class AwsConnector(Connector):
             scope=self.scope,
         )
 
-    def _failure(
-        self,
-        capability: Capability,
-        endpoint: str,
-        parameters: dict[str, Any],
-        kind: FailureKind,
-        detail: str,
-    ) -> Failure:
-        return Failure(
-            capability=capability,
-            kind=kind,
-            detail=detail,
-            endpoint=endpoint,
-            parameters=parameters,
-            collector_version=self.collector_version,
-            collected_at=self._clock(),
-            scope=self.scope,
-        )
-
     def _client(self, service: str) -> Any:
         return self._clients(service)
-
-    # --- reads ---------------------------------------------------------------------
 
     def list_accounts(self) -> CollectionResult:
         def read() -> tuple[list[dict[str, Any]], Any, dict[str, Any]]:
@@ -387,9 +366,6 @@ def _jsonable(value: Any) -> Any:
     if isinstance(value, bytes):
         return value.decode("utf-8", errors="replace")
     return value
-
-
-# --- setup verification -----------------------------------------------------------------
 
 
 class AwsTrustPolicyError(Exception):

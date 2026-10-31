@@ -1,4 +1,4 @@
-"""Per-claim check outcomes for check runs (U11).
+"""Per-claim check outcomes for check runs.
 
 Revision ID: 0011
 Revises: 0010

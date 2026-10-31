@@ -1,4 +1,4 @@
-"""Connection and credential vault tables (U6). Both are org-scoped and RLS-isolated."""
+"""Connection and credential vault tables. Both are org-scoped and RLS-isolated."""
 
 import enum
 import uuid

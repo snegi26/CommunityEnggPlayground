@@ -1,1 +1,1 @@
-"""The claim drafting agent (U9): drafts claims from policy spans; people confirm them."""
+"""The claim drafting agent: drafts claims from policy spans; people confirm them."""

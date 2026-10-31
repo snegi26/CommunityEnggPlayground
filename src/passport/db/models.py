@@ -1,4 +1,4 @@
-"""Core domain tables (U3). Every row carries ``org_id`` and is RLS-isolated (KTD5)."""
+"""Core domain tables. Every row carries ``org_id`` and is RLS-isolated (KTD5)."""
 
 import enum
 import uuid
@@ -35,7 +35,7 @@ class OrgScoped:
 
 
 class ApprovalFields:
-    """Document approval (U10): who last marked the item reviewed, and when it is next due."""
+    """Document approval: who last marked the item reviewed, and when it is next due."""
 
     last_approved_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

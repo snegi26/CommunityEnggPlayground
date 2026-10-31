@@ -39,9 +39,6 @@ class OrgParams(PredicateParams):
     """Parameters for a GitHub predicate with no setting beyond its scope."""
 
 
-# --- github_org_2fa_required -----------------------------------------------------
-
-
 def _org_2fa_required(observed: Observed, params: OrgParams) -> Outcome:
     return rows_where(observed, is_true("required"), field_label("org"))
 
@@ -61,9 +58,6 @@ GITHUB_ORG_2FA_REQUIRED = Predicate(
 )
 
 
-# --- github_members_2fa_enabled --------------------------------------------------
-
-
 def _members_2fa_enabled(observed: Observed, params: OrgParams) -> Outcome:
     return rows_where(observed, is_true("two_factor_enabled"), field_label("login"))
 
@@ -81,9 +75,6 @@ GITHUB_MEMBERS_2FA_ENABLED = Predicate(
     ),
     evaluate=_members_2fa_enabled,
 )
-
-
-# --- branch_protection_required --------------------------------------------------
 
 
 class BranchProtectionParams(PredicateParams):

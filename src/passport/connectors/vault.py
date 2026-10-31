@@ -202,9 +202,6 @@ def get_vault() -> Vault:
     return build_vault(VaultSettings())
 
 
-# --- Storage -------------------------------------------------------------------------
-
-
 def store_secret(session: Session, vault: Vault, connection: Connection, plaintext: bytes) -> None:
     """Seal ``plaintext`` for ``connection`` and store it, replacing any earlier secret."""
     sealed = vault.seal(plaintext, org_id=connection.org_id, connection_id=connection.id)

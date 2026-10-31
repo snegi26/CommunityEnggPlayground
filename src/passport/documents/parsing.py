@@ -157,8 +157,6 @@ def assemble_spans(version_hash: str, blocks: Sequence[Block]) -> ParseResult:
     )
 
 
-# --- Markdown and plain text ---------------------------------------------------------
-
 _ATX_HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 _LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
 
@@ -187,8 +185,6 @@ def _markdown_blocks(text: str, headings: bool) -> list[Block]:
     return blocks
 
 
-# --- DOCX ----------------------------------------------------------------------------
-
 _HEADING_STYLE = re.compile(r"^heading\s*(\d*)$", re.IGNORECASE)
 
 
@@ -204,9 +200,6 @@ def _docx_blocks(data: bytes) -> list[Block]:
         else:
             blocks.append(Block("paragraph", paragraph.text))
     return blocks
-
-
-# --- PDF -----------------------------------------------------------------------------
 
 
 @dataclass
@@ -296,9 +289,6 @@ def _pdf_blocks(data: bytes) -> list[Block]:
             text = line.text.strip()
     flush()
     return blocks
-
-
-# --- version diff (F3, R20) ----------------------------------------------------------
 
 
 class SpanLike(Protocol):

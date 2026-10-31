@@ -1,4 +1,4 @@
-"""Connections and the envelope-encrypted credential vault (U6).
+"""Connections and the envelope-encrypted credential vault.
 
 Revision ID: 0006
 Revises: 0003

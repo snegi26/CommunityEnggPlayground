@@ -1,4 +1,4 @@
-"""Build and send an org's weekly report after a check run (U13, F2).
+"""Build and send an org's weekly report after a check run (F2).
 
 ``passport.jobs.app`` must list ``"passport.reports.jobs"`` in its ``import_paths`` so
 the worker registers this task. The task is deferred once a run has finished

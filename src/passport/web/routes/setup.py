@@ -1,4 +1,4 @@
-"""The setup wizard, in F1 order (U14).
+"""The setup wizard, in F1 order.
 
 Steps and when each counts as complete (derived from stored data, never a flag):
 
@@ -14,7 +14,6 @@ scope, and invitations are owner actions; uploads and mappings are open to owner
 approvers. Viewers see the pages read-only.
 """
 
-import hashlib
 import uuid
 from collections.abc import Callable
 from contextlib import AbstractContextManager
@@ -120,9 +119,7 @@ KIND_LABELS = {
 }
 
 
-# --- provider dependencies (overridden in tests with fakes) ----------------------------
-
-
+# Provider dependencies, overridden in tests with fakes.
 def _boto_sts() -> Any:
     import boto3
 
@@ -166,9 +163,6 @@ def enqueue_drafting(org_id: uuid.UUID, version_id: uuid.UUID) -> int:
     """Defer drafting for a version whose upload transaction has committed."""
     job_id: int = draft_claims.defer(org_id=str(org_id), document_version_id=str(version_id))
     return job_id
-
-
-# --- wizard state ----------------------------------------------------------------------
 
 
 def _dates_set(row: OrgFrameworkSettings) -> bool:
@@ -249,9 +243,6 @@ def done_page(request: Request, ctx: WebOrg, db: DbSession) -> Response:
     return _page(request, ctx, db, "done", {"documents": versions})
 
 
-# --- 1. connect systems ----------------------------------------------------------------
-
-
 def _connections(db: Session, org_id: uuid.UUID) -> list[Connection]:
     return list(
         db.scalars(
@@ -326,7 +317,7 @@ def _pending_aws(db: Session, token: str, providers: SetupProviders) -> dict[str
     """The still-pending setup behind ``token`` (RLS-scoped), for the retry form."""
     setup = db.scalars(
         select(ConnectionSetup).where(
-            ConnectionSetup.token_hash == hashlib.sha256(token.encode()).hexdigest(),
+            ConnectionSetup.token_hash == hash_token(token),
             ConnectionSetup.kind == ConnectionKind.AWS.value,
         )
     ).one_or_none()
@@ -504,9 +495,6 @@ def github_callback(
         return _connect_page(request, ctx, db, 422, github_error=str(exc))
     refresh_statuses(db, ctx)
     return see_other(f"/orgs/{ctx.org_id}/setup/connect?connected={connection.id}")
-
-
-# --- 2. settings and scope inventory ---------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -729,9 +717,6 @@ def scope_production(
     return see_other(f"/orgs/{ctx.org_id}/setup/settings")
 
 
-# --- 3. upload policies and evidence ---------------------------------------------------
-
-
 @dataclass(frozen=True)
 class DocumentRow:
     document: Document
@@ -760,6 +745,32 @@ def latest_versions(db: Session, org_id: uuid.UUID) -> list[DocumentRow]:
         .order_by(Document.title, Document.id)
     ).all()
     return [DocumentRow(d, v) for d, v in rows]
+
+
+def latest_version_for(
+    db: Session, org_id: uuid.UUID, document_id: uuid.UUID
+) -> DocumentRow | None:
+    """One document's row from :func:`latest_versions`, or None when it has none."""
+    latest = (
+        select(
+            DocumentVersion.document_id,
+            func.max(DocumentVersion.version_number).label("number"),
+        )
+        .where(DocumentVersion.org_id == org_id, DocumentVersion.document_id == document_id)
+        .group_by(DocumentVersion.document_id)
+        .subquery()
+    )
+    row = db.execute(
+        select(Document, DocumentVersion)
+        .join(DocumentVersion, DocumentVersion.document_id == Document.id)
+        .join(
+            latest,
+            (latest.c.document_id == DocumentVersion.document_id)
+            & (latest.c.number == DocumentVersion.version_number),
+        )
+        .where(Document.org_id == org_id, Document.id == document_id)
+    ).first()
+    return DocumentRow(row[0], row[1]) if row is not None else None
 
 
 def _evidence(db: Session, org_id: uuid.UUID) -> list[EvidenceItem]:
@@ -880,9 +891,6 @@ def upload_evidence_submit(
     return see_other(f"/orgs/{ctx.org_id}/setup/upload")
 
 
-# --- 4. map items to controls ----------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class MapRow:
     key: str
@@ -995,9 +1003,6 @@ def map_remove(
     unmap_item(db, ctx.org_id, ctx.actor, item_kind, item_id, framework, control_id)
     refresh_statuses(db, ctx)
     return see_other(f"/orgs/{ctx.org_id}/setup/map")
-
-
-# --- 5. invite the approver ------------------------------------------------------------
 
 
 def _invite_page(

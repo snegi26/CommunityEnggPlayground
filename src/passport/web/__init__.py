@@ -1,4 +1,4 @@
-"""Server-rendered pages (U14): sign-in, setup wizard, passport, claim review, reports."""
+"""Server-rendered pages: sign-in, setup wizard, passport, claim review, reports."""
 
 from pathlib import Path
 

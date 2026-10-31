@@ -1,4 +1,4 @@
-"""Control catalogs, item mappings, framework settings, and scope inventory (U4).
+"""Control catalogs, item mappings, framework settings, and scope inventory.
 
 Revision ID: 0004
 Revises: 0003

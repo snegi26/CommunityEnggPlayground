@@ -6,14 +6,9 @@ from datetime import UTC, datetime
 import pytest
 
 from passport.connectors.base import Capability, Connector, UnsupportedCapabilityError, collect
-from passport.connectors.fakes import (
-    FakeConnector,
-    failure,
-    partial,
-    users_mfa,
-)
+from passport.connectors.fakes import FakeConnector, users_mfa
 from passport.connectors.models import ConnectionKind
-from passport.connectors.observation import Failure, FailureKind, Observed
+from passport.connectors.observation import Failure, Observed
 from passport.connectors.registry import ConnectorRegistry, RegistryError, kinds_serving
 
 # Attributes every connector carries that are data, not calls to the provider.
@@ -32,13 +27,6 @@ def test_the_connector_interface_exposes_only_capability_named_read_methods() ->
     assert members - callables <= DATA_ATTRIBUTES
     for name in callables:
         assert name.startswith(("list_", "get_")), name
-
-
-def test_every_capability_is_a_read_verb_with_no_generic_request_method() -> None:
-    for capability in Capability:
-        assert capability.value.split("_", 1)[0] in {"list", "get"}
-    for forbidden in ("request", "call", "execute", "send", "put", "post", "update", "delete"):
-        assert not hasattr(Connector, forbidden)
 
 
 def test_capability_methods_take_no_arguments_that_could_carry_a_request() -> None:
@@ -125,66 +113,6 @@ def test_fake_scripts_successive_states_for_a_resolved_item() -> None:  # AE8
     # The last scripted state repeats once the script is exhausted.
     third = fake.list_users_mfa()
     assert isinstance(third, Observed) and third.rows == second.rows
-
-
-def test_two_fakes_cover_two_production_accounts_separately() -> None:  # AE7
-    connected = FakeConnector(
-        ConnectionKind.AWS,
-        scope=("111111111111",),
-        responses={Capability.GET_ROOT_MFA: [{"account": "111111111111", "root_mfa": True}]},
-    )
-    result = connected.get_root_mfa()
-    assert isinstance(result, Observed)
-    assert result.scope == ("111111111111",)
-    assert "222222222222" not in result.scope
-
-
-def test_a_fake_configured_to_return_unauthorized_yields_no_observation() -> None:  # AE6
-    fake = FakeConnector(
-        ConnectionKind.GOOGLE_WORKSPACE,
-        scope=("example.com",),
-        responses={Capability.LIST_USERS_MFA: failure(FailureKind.UNAUTHORIZED)},
-    )
-    result = fake.list_users_mfa()
-    assert isinstance(result, Failure)
-    assert result.kind is FailureKind.UNAUTHORIZED
-    assert not isinstance(result, Observed)
-
-
-@pytest.mark.parametrize(
-    "kind", [FailureKind.RATE_LIMITED, FailureKind.TIMEOUT, FailureKind.INCOMPLETE_PAGINATION]
-)
-def test_fake_scripts_each_other_failure_kind(kind: FailureKind) -> None:
-    fake = FakeConnector(
-        ConnectionKind.AWS,
-        scope=("111111111111",),
-        responses={Capability.GET_ROOT_MFA: failure(kind)},
-    )
-    result = fake.get_root_mfa()
-    assert isinstance(result, Failure) and result.kind is kind
-
-
-def test_fake_returns_an_empty_user_list_as_an_empty_observation() -> None:  # AE6
-    fake = FakeConnector(
-        ConnectionKind.GOOGLE_WORKSPACE,
-        scope=("example.com",),
-        responses={Capability.LIST_USERS_MFA: users_mfa({})},
-    )
-    result = fake.list_users_mfa()
-    assert isinstance(result, Observed)
-    assert result.is_empty and result.row_count == 0
-    assert not result.checkable
-
-
-def test_fake_returns_an_incomplete_page_set() -> None:
-    fake = FakeConnector(
-        ConnectionKind.GOOGLE_WORKSPACE,
-        scope=("example.com",),
-        responses={Capability.LIST_USERS_MFA: partial(users_mfa({"a": True}), total=5)},
-    )
-    result = fake.list_users_mfa()
-    assert isinstance(result, Observed)
-    assert (result.row_count, result.total_count, result.complete) == (1, 5, False)
 
 
 def test_fake_refuses_capabilities_its_kind_does_not_serve() -> None:

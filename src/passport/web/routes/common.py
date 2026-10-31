@@ -1,4 +1,4 @@
-"""Shared pieces of the HTML pages: templates, sign-in redirects, and org context (U14).
+"""Shared pieces of the HTML pages: templates, sign-in redirects, and org context.
 
 Pages reuse the JSON API's services and dependencies (``passport.auth.deps``): the org
 context check is the same ``org_context`` (membership, RLS binding, MFA for approving

@@ -1,4 +1,4 @@
-"""Weekly reports (U13). One per check run; the last sent one is the next diff baseline."""
+"""Weekly reports. One per check run; the last sent one is the next diff baseline."""
 
 import uuid
 from datetime import datetime

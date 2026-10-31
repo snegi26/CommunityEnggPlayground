@@ -1,6 +1,6 @@
-"""The passport per framework, item approval, claim review, re-runs, and reports (U14).
+"""The passport per framework, item approval, claim review, re-runs, and reports.
 
-Claim and approval actions go through the U10 services with
+Claim and approval actions go through the claim services with
 ``ActingMember.from_context``; their refusals become responses: ``ForbiddenError`` is
 403, ``ClaimActionError`` (including ``NeedsAcknowledgementError``) is 409, each with
 the service's message. Only people reach these routes (the actor is always the
@@ -19,7 +19,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
 from passport.agent.models import AgentRun
@@ -52,12 +52,12 @@ from passport.db.models import (
     ItemStatus,
     RunStatus,
 )
-from passport.documents.service import spans_for_version
+from passport.documents.models import DocumentSpan
 from passport.predicates.registry import Predicate, PredicateError
 from passport.predicates.registry import registry as predicates
 from passport.reports.builder import render_report_html
 from passport.reports.models import WeeklyReport
-from passport.status.engine import SEVERITY
+from passport.status.engine import SEVERITY_RANK
 from passport.tenancy.models import Org
 from passport.web.csrf import require_csrf
 from passport.web.routes.common import (
@@ -68,11 +68,10 @@ from passport.web.routes.common import (
     render,
     see_other,
 )
-from passport.web.routes.setup import FRAMEWORK_LABELS, latest_versions
+from passport.web.routes.setup import FRAMEWORK_LABELS, latest_version_for, latest_versions
 
 router = APIRouter(dependencies=[Depends(require_csrf)], default_response_class=HTMLResponse)
 
-_RANK = {s.value: i for i, s in enumerate(SEVERITY)}
 CLAIM_STATE_LABELS = {
     ClaimState.UNCONFIRMED.value: "Unconfirmed",
     ClaimState.NEEDS_REVIEW.value: "Needs review",
@@ -86,9 +85,6 @@ def _names(db: Session, ids: set[uuid.UUID]) -> dict[uuid.UUID, str]:
     if not ids:
         return {}
     return {u.id: u.name for u in db.scalars(select(User).where(User.id.in_(ids)))}
-
-
-# --- the passport ----------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -169,7 +165,7 @@ def passport_rows(db: Session, org_id: uuid.UUID, framework: Framework) -> list[
                 review_link=link,
             )
         )
-    rows.sort(key=lambda r: (_RANK.get(r.status, len(_RANK)), r.title.lower()))
+    rows.sort(key=lambda r: (SEVERITY_RANK.get(r.status, len(SEVERITY_RANK)), r.title.lower()))
     return rows
 
 
@@ -264,9 +260,7 @@ def approve(
     """Mark the item reviewed; a policy's approval applies to its latest version."""
     target_id = item_id
     if item_kind is ItemKind.DOCUMENT:
-        latest = next(
-            (r for r in latest_versions(db, ctx.org_id) if r.document.id == item_id), None
-        )
+        latest = latest_version_for(db, ctx.org_id, item_id)
         if latest is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "not_found")
         target_id = latest.version.id
@@ -284,9 +278,6 @@ def approve(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "not_found") from None
     refresh_statuses(db, ctx)
     return see_other(f"/orgs/{ctx.org_id}/passport?framework={framework.value}")
-
-
-# --- claim review ----------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -392,7 +383,9 @@ def _claims_page(
             "version": version,
             "claims": views,
             "drafting": drafting,
-            "no_text": not spans_for_version(db, version.id),
+            "no_text": not db.scalar(
+                select(exists().where(DocumentSpan.document_version_id == version.id))
+            ),
             "predicates": [(p.id, p.title) for p in _latest_predicates()],
             **context,
         },
@@ -565,9 +558,6 @@ def edit(
             "error": str(exc),
         }
         return _claims_page(request, ctx, db, version, status_code=422, editing=editing)
-
-
-# --- reports ---------------------------------------------------------------------------
 
 
 @router.get("/orgs/{org_id}/reports/{report_id}")

@@ -1,4 +1,4 @@
-"""Setup flows for the AWS, Google Workspace, and GitHub connections (U7, F1).
+"""Setup flows for the AWS, Google Workspace, and GitHub connections (F1).
 
 Every flow is two steps. ``begin_*`` stores a pending setup server-side, bound to
 the org (row-level security), the user, and the browser session, and returns a
@@ -8,7 +8,6 @@ then creates the connection. Platform credentials come from the environment
 (KTD6) and are never logged or written to events.
 """
 
-import hashlib
 import hmac
 import json
 import re
@@ -28,6 +27,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
+from passport.auth.service import hash_token
 from passport.connectors.aws import (
     SECURITY_AUDIT_POLICY_ARN,
     AwsConnector,
@@ -122,10 +122,6 @@ class ConnectionSetup(IdMixin, CreatedAtMixin, OrgScoped, Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-def _sha256(value: str) -> str:
-    return hashlib.sha256(value.encode()).hexdigest()
-
-
 def org_id_from_state(state: str) -> uuid.UUID:
     """The org a setup token belongs to; the callback route sets this org's context.
 
@@ -154,9 +150,9 @@ def _start(
     setup = ConnectionSetup(
         org_id=org_id,
         kind=kind.value,
-        token_hash=_sha256(token),
+        token_hash=hash_token(token),
         user_id=human.user_id,
-        session_key_hash=_sha256(session_key),
+        session_key_hash=hash_token(session_key),
         payload=payload,
         expires_at=utcnow() + SETUP_TTL,
     )
@@ -191,7 +187,7 @@ def _consume(
         raise refused
     # Row-level security limits this lookup to the active org.
     setup = session.scalars(
-        select(ConnectionSetup).where(ConnectionSetup.token_hash == _sha256(token))
+        select(ConnectionSetup).where(ConnectionSetup.token_hash == hash_token(token))
     ).one_or_none()
     if setup is None:
         raise refused
@@ -200,7 +196,7 @@ def _consume(
         setup.org_id == org_id
         and setup.kind == kind.value
         and setup.user_id == human.user_id
-        and hmac.compare_digest(setup.session_key_hash, _sha256(session_key))
+        and hmac.compare_digest(setup.session_key_hash, hash_token(session_key))
         and setup.expires_at > utcnow()
     )
     # Single use, whether or not it matched.
@@ -224,9 +220,6 @@ def _ensure_scope_entry(
     if identifier in existing:
         return None
     return add_scope_entry(session, org_id, actor, kind, identifier, label=label, production=False)
-
-
-# --- AWS -------------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -328,7 +321,7 @@ def prefill_aws_scope(
     """Add the organization's accounts (or just this one) as non-production entries.
 
     When the role can call Organizations ``ListAccounts`` every active account is
-    added for the user to mark as production (U4); otherwise only the connected
+    added for the user to mark as production; otherwise only the connected
     account. Entries the org already declared are left untouched.
     """
     accounts: list[tuple[str, str]] = []
@@ -349,9 +342,6 @@ def prefill_aws_scope(
         if entry is not None:
             added.append(entry)
     return added
-
-
-# --- Google Workspace ------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -472,9 +462,6 @@ def complete_google_setup(
     return connection
 
 
-# --- GitHub ----------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class GitHubSetupStart:
     token: str
@@ -577,9 +564,6 @@ def complete_github_setup(
     return connection
 
 
-# --- building a connector for a stored connection ---------------------------------------
-
-
 def connector_for(
     session: Session,
     connection: Connection,
@@ -590,7 +574,7 @@ def connector_for(
     sts: Any = None,
     aws_clients: ClientFactory | None = None,
 ) -> Connector:
-    """The live connector for an active connection (the check runner, U11, uses this)."""
+    """The live connector for an active connection (the check runner uses this)."""
     kind = ConnectionKind(connection.kind)
     config = connection.config
     if kind is ConnectionKind.AWS:

@@ -1,9 +1,9 @@
-"""Draft checkable claims from a policy version, verify them, and record them (U9, KTD4).
+"""Draft checkable claims from a policy version, verify them, and record them (KTD4).
 
 A run has four steps:
 
 1. **Propose.** The model reads the version's new and changed spans (KTD14: unchanged spans
-   carry forward in U10 and are never sent) and calls ``propose_claims``. Its tools are
+   carry forward and are never sent) and calls ``propose_claims``. Its tools are
    bound to this org and version (KTD10).
 2. **Verify deterministically.** A claim's quote must be an exact whitespace-normalized
    substring of the span it cites, that span must be one sent for drafting, and its
@@ -79,9 +79,6 @@ class DraftingError(RuntimeError):
 
 def _prompt(path: Path) -> str:
     return path.read_text(encoding="utf-8")
-
-
-# --- Verified drafts -------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -160,9 +157,6 @@ def verify_proposals(
         seen.add(key)
         result.drafts.append(draft)
     return result
-
-
-# --- Model calls -----------------------------------------------------------------
 
 
 def _draft_request_text(spans: Sequence[SpanText], registry: PredicateRegistry) -> str:
@@ -303,9 +297,6 @@ def check_support(client: ModelClient, *, model: str, drafts: Sequence[Draft]) -
     return checked
 
 
-# --- Review date suggestion ------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class ReviewSuggestion:
     review_on: date
@@ -381,9 +372,6 @@ def suggest_review_date(spans: Iterable[SpanText], reference: date) -> ReviewSug
                         )
                         break
     return cadence
-
-
-# --- The run ---------------------------------------------------------------------
 
 
 @dataclass(frozen=True)

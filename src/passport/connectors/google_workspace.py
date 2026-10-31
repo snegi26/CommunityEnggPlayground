@@ -18,7 +18,12 @@ import httpx
 
 from passport.connectors.base import Capability, Connector
 from passport.connectors.models import ConnectionKind
-from passport.connectors.observation import CollectionResult, Failure, FailureKind, Observed
+from passport.connectors.observation import (
+    CollectionResult,
+    ConnectorReadError,
+    FailureKind,
+    Observed,
+)
 from passport.connectors.registry import registry
 from passport.db.base import utcnow
 
@@ -41,11 +46,8 @@ EMPTY_LIST_NOTE = (
 )
 
 
-class _ReadFailedError(Exception):
-    def __init__(self, kind: FailureKind, detail: str) -> None:
-        super().__init__(detail)
-        self.kind = kind
-        self.detail = detail
+class _ReadFailedError(ConnectorReadError):
+    pass
 
 
 def failure_kind_for_status(status_code: int) -> FailureKind | None:
@@ -155,25 +157,6 @@ class GoogleWorkspaceConnector(Connector):
             collected_at=self._clock(),
             scope=self.scope,
             pagination_complete=True,
-        )
-
-    def _failure(
-        self,
-        capability: Capability,
-        endpoint: str,
-        parameters: dict[str, Any],
-        kind: FailureKind,
-        detail: str,
-    ) -> Failure:
-        return Failure(
-            capability=capability,
-            kind=kind,
-            detail=detail,
-            endpoint=endpoint,
-            parameters=parameters,
-            collector_version=self.collector_version,
-            collected_at=self._clock(),
-            scope=self.scope,
         )
 
 

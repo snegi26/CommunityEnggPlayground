@@ -7,16 +7,18 @@ or a typed :class:`~passport.connectors.observation.Failure`.
 """
 
 import enum
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 from passport.connectors.models import ConnectionKind
 
 if TYPE_CHECKING:
-    from passport.connectors.observation import CollectionResult
+    from passport.connectors.observation import CollectionResult, Failure, FailureKind
 
 
 class Capability(enum.StrEnum):
-    """Every read a connector may perform. Predicates (U8) name the one they need."""
+    """Every read a connector may perform. Predicates name the one they need."""
 
     # AWS
     LIST_ACCOUNTS = "list_accounts"
@@ -47,6 +49,28 @@ class Connector:
     collector_version: str
     # Scope identifiers this connection covers: account ids, a domain, an org login (R18).
     scope: tuple[str, ...] = ()
+    _clock: Callable[[], datetime]
+
+    def _failure(
+        self,
+        capability: "Capability",
+        endpoint: str,
+        parameters: dict[str, Any],
+        kind: "FailureKind",
+        detail: str,
+    ) -> "Failure":
+        from passport.connectors.observation import Failure
+
+        return Failure(
+            capability=capability,
+            kind=kind,
+            detail=detail,
+            endpoint=endpoint,
+            parameters=parameters,
+            collector_version=self.collector_version,
+            collected_at=self._clock(),
+            scope=self.scope,
+        )
 
     def _unsupported(self, capability: Capability) -> "CollectionResult":
         raise UnsupportedCapabilityError(f"{type(self).__name__} does not serve {capability}")
@@ -88,7 +112,7 @@ def implements(cls: type[Connector], capability: Capability) -> bool:
 
 
 def collect(connector: Connector, capability: Capability) -> "CollectionResult":
-    """Run one capability read by name; the runner (U11) iterates capabilities this way."""
+    """Run one capability read by name; the runner iterates capabilities this way."""
     method = getattr(connector, Capability(capability).value)
     result: CollectionResult = method()
     return result

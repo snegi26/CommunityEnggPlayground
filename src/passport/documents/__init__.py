@@ -1,1 +1,1 @@
-"""Policy and evidence ingestion: storage, versioning, span parsing (U5)."""
+"""Policy and evidence ingestion: storage, versioning, span parsing."""

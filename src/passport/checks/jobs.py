@@ -1,4 +1,4 @@
-"""Scheduled and on-demand check jobs (U11, R10, KTD5, KTD11).
+"""Scheduled and on-demand check jobs (R10, KTD5, KTD11).
 
 ``passport.jobs.app`` lists ``"passport.checks.jobs"`` in its ``import_paths`` so the
 worker registers these tasks.

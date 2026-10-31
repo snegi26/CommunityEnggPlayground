@@ -1,1 +1,1 @@
-"""Claim approval workflow, version matching, and document approval (U10)."""
+"""Claim approval workflow, version matching, and document approval."""
