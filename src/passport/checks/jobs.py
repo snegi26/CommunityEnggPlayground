@@ -104,8 +104,12 @@ def run_checks_for_org(
 
 @app.task(name="passport.checks.run_org_checks")
 def run_org_checks(org_id: str, run_id: str) -> dict[str, Any]:
-    """Run one org's checks with live connectors."""
-    return run_checks_for_org(uuid.UUID(org_id), uuid.UUID(run_id))
+    """Run one org's checks with live connectors, then queue its weekly report (R11)."""
+    from passport.reports.jobs import enqueue_report
+
+    result = run_checks_for_org(uuid.UUID(org_id), uuid.UUID(run_id))
+    enqueue_report(uuid.UUID(org_id), uuid.UUID(run_id))
+    return result
 
 
 def enqueue_run(org_id: uuid.UUID, run_id: uuid.UUID, *, delay: timedelta | None = None) -> int:

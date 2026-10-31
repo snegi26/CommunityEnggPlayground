@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Weekly report: {{ org_name }}</title>
+</head>
+<body>
+<main class="weekly-report">
+  <h1>Weekly report: {{ org_name }}</h1>
+  <p class="generated">Generated {{ generated_at.strftime("%Y-%m-%d %H:%M UTC") }}</p>
+
+  <section class="headline">
+    {% if sections.baseline %}
+    <p><strong>Baseline report.</strong> This is the first report: every item is listed below.</p>
+    {% elif sections.quiet_week %}
+    <p><strong>Nothing changed since the last report</strong>, and every connected system was reachable.</p>
+    {% elif sections.nothing_changed %}
+    <p><strong>No status changed, but not everything was checked.</strong></p>
+    {% else %}
+    <p><strong>{{ sections.newly_bad | length }} newly bad, {{ sections.resolved | length }} resolved.</strong></p>
+    {% endif %}
+    {% if not coverage.all_reachable %}
+    <p class="warning">Not everything was checked this week:
+      {% if coverage.unreachable %}{{ coverage.unreachable | join(", ") }} could not be reached.{% endif %}
+      {% if coverage.run_status != "succeeded" %}The check run did not finish ({{ coverage.run_status }}).{% endif %}
+    </p>
+    {% endif %}
+  </section>
+
+  {% macro item_list(entries, empty) %}
+    {% if entries %}
+    <ul>
+      {% for entry in entries %}
+      <li class="item status-{{ entry.status }}">
+        <span class="title">{{ entry.title }}</span>
+        <span class="meta">({{ entry.item_kind }}, {{ entry.framework }})</span>:
+        {% if entry.before_label %}{{ entry.before_label }} &rarr; {% endif %}<strong>{{ entry.status_label }}</strong>
+        {% if not entry.trusted %}<em>(not trusted)</em>{% endif %}
+        {% if entry.causes %}
+        <ul class="causes">
+          {% for cause in entry.causes %}<li>{{ cause }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">{{ empty }}</p>
+    {% endif %}
+  {% endmacro %}
+
+  <section class="newly-bad">
+    <h2>Newly bad ({{ sections.newly_bad | length }})</h2>
+    {{ item_list(sections.newly_bad, "No item changed to a bad status.") }}
+  </section>
+
+  <section class="resolved">
+    <h2>Resolved ({{ sections.resolved | length }})</h2>
+    {{ item_list(sections.resolved, "No item was resolved.") }}
+  </section>
+
+  <section class="still-bad">
+    <h2>Still bad ({{ sections.still_bad | length }})</h2>
+    {{ item_list(sections.still_bad, "No item is still in a bad status.") }}
+  </section>
+
+  {% if sections.baseline %}
+  <section class="baseline">
+    <h2>Baseline: every item ({{ sections.all_items | length }})</h2>
+    {{ item_list(sections.all_items, "There are no items yet.") }}
+  </section>
+  {% endif %}
+
+  <section class="coverage">
+    <h2>Coverage</h2>
+    <ul>
+      <li>Claims in the run: {{ coverage.claims }}</li>
+      <li>Claims checked: {{ coverage.checked }}</li>
+      <li>Contradicted: {{ coverage.contradicted }}</li>
+      <li>Check failed: {{ coverage.check_failed }}</li>
+      <li>Not checkable: {{ coverage.not_checkable }}</li>
+    </ul>
+    <h3>Connected systems</h3>
+    {% if coverage.systems %}
+    <ul>
+      {% for system in coverage.systems %}
+      <li class="{{ 'reachable' if system.reachable else 'unreachable' }}">{{ system.name }}: {{ "reachable" if system.reachable else "unreachable" }}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">No connected system was read in this run.</p>
+    {% endif %}
+  </section>
+</main>
+</body>
+</html>

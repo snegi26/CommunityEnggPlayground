@@ -612,3 +612,19 @@ def test_a_seeded_org_full_run_records_coverage_counts(org: Org) -> None:
         status = db.scalars(select(ItemStatus)).one()
         assert status.status == "contradicted"
         assert verify_chain(db, org.org_id).ok
+
+
+def test_a_finished_run_queues_its_weekly_report(org: Org, monkeypatch: pytest.MonkeyPatch) -> None:
+    from passport.checks import jobs as check_jobs
+
+    run = new_run(org, ON_DEMAND)
+    monkeypatch.setattr(check_jobs, "run_checks_for_org", lambda o, r: {"run_id": str(r)})
+    connector = InMemoryConnector()
+
+    with app.replace_connector(connector):
+        check_jobs.run_org_checks(org_id=str(org.org_id), run_id=str(run))
+
+    jobs = list(connector.jobs.values())
+    assert [(j["task_name"], j["args"]["run_id"]) for j in jobs] == [
+        ("passport.reports.build_and_send", str(run))
+    ]
