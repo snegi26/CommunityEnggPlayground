@@ -6,7 +6,7 @@ from passport.settings import get_settings, libpq_url
 
 app = procrastinate.App(
     connector=procrastinate.PsycopgConnector(conninfo=libpq_url(get_settings().database_url)),
-    import_paths=["passport.jobs", "passport.agent.jobs"],
+    import_paths=["passport.jobs", "passport.agent.jobs", "passport.checks.jobs"],
 )
 
 
